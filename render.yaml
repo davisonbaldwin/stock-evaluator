@@ -1,0 +1,13 @@
+# Render blueprint — deploy the Stock Evaluator as a web service.
+# In the Render dashboard: New → Blueprint → point it at this repo.
+services:
+  - type: web
+    name: stock-evaluator
+    runtime: python
+    plan: free            # free tier sleeps after ~15 min idle (first hit then takes ~50s);
+                          # upgrade to "starter" to keep it always warm
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
