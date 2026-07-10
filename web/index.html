@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Evaluator — checked against the index</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%2315130d'/%3E%3Ctext x='50' y='74' font-size='68' text-anchor='middle' font-family='Menlo,monospace' fill='%23ffb454'%3E%24%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  /* == the evaluator's own identity: an amber terminal that keeps you honest == */
+  :root {
+    --bg: #15130d; --panel: #1d1a12; --panel2: #211d14;
+    --ink: #ede3cf; --muted: #9c9077; --line: rgba(237, 227, 207, 0.14);
+    --amber: #ffb454; --green: #6fcf8f; --red: #f27d6c; --teal: #4fd8c4;
+    --mono: Menlo, Consolas, monospace;
+    --sans: Seravek, "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); background: var(--bg); color: var(--ink); }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: repeating-linear-gradient(0deg, transparent 0 3px,
+      rgba(255, 180, 84, 0.035) 3px 4px); }
+  .wrap { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto;
+    padding: 26px 20px 60px; }
+
+  header { display: flex; justify-content: space-between; align-items: baseline;
+    gap: 14px; flex-wrap: wrap; border-bottom: 1px solid var(--line);
+    padding-bottom: 14px; margin-bottom: 26px; }
+  h1 { font-family: var(--mono); font-size: 17px; margin: 0; letter-spacing: 0.02em;
+    font-weight: 700; }
+  h1 .dot { color: var(--amber); }
+  .sub { color: var(--muted); font-size: 12.5px; }
+
+  /* ---- the one control that matters ---- */
+  .ask { background: var(--panel); border: 1px solid var(--line); padding: 22px;
+    margin-bottom: 12px; }
+  .ask .prompt { font-family: var(--mono); font-size: 11px; color: var(--muted);
+    letter-spacing: 0.1em; margin-bottom: 12px; }
+  .ask .prompt b { color: var(--amber); font-weight: 400; }
+  .searchbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+  .searchbar input { font-family: var(--mono); font-size: 22px; padding: 12px 16px;
+    border: 1px solid var(--line); width: 240px; text-transform: uppercase;
+    background: var(--bg); color: var(--ink); letter-spacing: 0.06em; }
+  #empty { margin: 26px 2px 8px; color: var(--muted); font-size: 12.5px; line-height: 2.1; }
+  #empty b { color: var(--amber); font-weight: 400; margin-right: 4px; }
+  .searchbar input::placeholder { color: #5c5647; text-transform: none;
+    font-size: 15px; letter-spacing: 0; }
+  .searchbar input:focus { outline: none; border-color: var(--amber); }
+  .searchbar select { font-family: var(--sans); font-size: 13.5px; padding: 12px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--muted); }
+  .searchbar select:focus { outline: none; border-color: var(--amber); }
+  .searchbar button { font-family: var(--sans); font-size: 15px; padding: 12px 26px;
+    border: 0; background: var(--amber); color: var(--bg); cursor: pointer;
+    font-weight: 700; }
+  .searchbar button:hover { filter: brightness(1.1); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .chip-cmp { border-style: dashed; }
+  .chip { font-family: var(--mono); font-size: 12px; padding: 5px 12px;
+    background: transparent; border: 1px solid var(--line); cursor: pointer;
+    color: var(--muted); }
+  .chip:hover { border-color: var(--amber); color: var(--amber); }
+  .howline { font-size: 12px; color: var(--muted); margin: 10px 2px 26px; }
+  .howline b { color: var(--ink); font-weight: 600; }
+
+  #status { padding: 44px 0; text-align: center; color: var(--muted); display: none; }
+  .spinner { width: 34px; height: 34px; border: 3px solid var(--line);
+    border-top-color: var(--amber); border-radius: 50%; margin: 0 auto 14px;
+    animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  #statusmsg { font-family: var(--mono); font-size: 12.5px; }
+  #statusmsg::before { content: "$ "; color: var(--amber); }
+  .statusnote { font-size: 11.5px; margin-top: 8px; color: #5c5647; }
+  #error { display: none; background: rgba(242, 125, 108, 0.08);
+    border: 1px solid rgba(242, 125, 108, 0.4); color: var(--red);
+    padding: 14px 18px; margin-bottom: 20px; font-size: 14px; }
+
+  .card { background: var(--panel); border: 1px solid var(--line);
+    padding: 18px 20px; margin-bottom: 16px; }
+  .hero { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+    align-items: center; }
+  .hero h2 { margin: 0 0 2px; font-size: 23px; font-weight: 700; }
+  .hero .meta { color: var(--muted); font-size: 12.5px; }
+  .hero .price { font-family: var(--mono); font-size: 26px; font-weight: 700;
+    margin-top: 8px; }
+  .scorewrap { text-align: center; min-width: 170px; }
+  .verdict-pillars { margin-top: 6px; font-size: 10.5px; color: var(--muted);
+    letter-spacing: 0.04em; }
+  .verdict-pillars b { color: var(--ink); font-weight: 500; }
+  .scorering { width: 96px; height: 96px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; margin: 0 auto 8px;
+    font-family: var(--mono); font-size: 28px; font-weight: 800; color: var(--bg); }
+  .verdict { font-size: 12.5px; color: var(--muted); max-width: 210px; margin: 0 auto;
+    line-height: 1.45; }
+
+  .statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; }
+  .stat .k { font-family: var(--mono); font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat .v { font-family: var(--mono); font-size: 18px; font-weight: 700;
+    margin-top: 4px; }
+  .stat .s { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 860px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .card h3 { margin: 0 0 12px; font-family: var(--mono); font-size: 12px;
+    letter-spacing: 0.06em; color: var(--ink); font-weight: 700; }
+  .card h3::before { content: "$ "; color: var(--amber); }
+  .card .note { font-size: 11.5px; color: var(--muted); margin-top: 10px;
+    line-height: 1.5; }
+  .chartbox { position: relative; height: 270px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-family: var(--mono); font-weight: 400; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.06em; }
+  th:first-child, td:first-child { text-align: left; }
+  td { font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 0; }
+  .pillbar { height: 6px; background: var(--line); overflow: hidden; width: 110px;
+    display: inline-block; vertical-align: middle; margin-left: 8px; }
+  .pillbar > div { height: 100%; }
+  .footer { color: var(--muted); font-size: 11.5px; text-align: center; margin-top: 28px;
+    line-height: 1.6; }
+  .footer a { color: var(--amber); }
+  #results { display: none; }
+
+  /* phones */
+  @media (max-width: 640px) {
+    .wrap { padding: 20px 14px 48px; }
+    .searchbar input { flex: 1 1 100%; width: auto; font-size: 19px; }
+    .searchbar select { flex: 1 1 auto; }
+    .searchbar button { flex: 1 1 auto; }
+    .hero .price { font-size: 22px; }
+    .chartbox { height: 230px; }
+    /* wide tables scroll inside their card, never the page */
+    .card table { display: block; overflow-x: auto; white-space: nowrap; }
+    .grid3 table { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>STOCK EVALUATOR<span class="dot">▌</span></h1>
+    <div class="sub">every verdict is checked against the index</div>
+  </header>
+
+  <div class="ask">
+    <div class="prompt"><b>$</b> EVALUATE A TICKER — OR COMPARE UP TO 10, SEPARATED BY COMMAS</div>
+    <div class="searchbar">
+      <input id="ticker" placeholder="NVDA — or NVDA, AMD" autofocus aria-label="Ticker symbol, or several separated by commas"
+             onkeydown="if(event.key==='Enter')go()">
+      <select id="benchmark" aria-label="Benchmark to compare against">
+        <option value="VTI" selected>vs VTI (total US market)</option>
+        <option value="VOO">vs VOO (S&amp;P 500)</option>
+        <option value="SPY">vs SPY (S&amp;P 500)</option>
+        <option value="QQQ">vs QQQ (Nasdaq 100)</option>
+        <option value="DIA">vs DIA (Dow 30)</option>
+        <option value="IWM">vs IWM (small caps)</option>
+        <option value="VXUS">vs VXUS (international)</option>
+        <option value="FXAIX">vs FXAIX (Fidelity 500 fund)</option>
+      </select>
+      <button onclick="go()">Evaluate</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="howline">The honest question: <b>would you have been better off just buying the index?</b>
+    Every number below is presented against that alternative — one stock in depth, or several side by side.</div>
+
+  <div id="empty">
+    <div><b>$</b> a 0–100 score across six pillars — growth, valuation, quality, momentum, risk, vs index</div>
+    <div><b>$</b> 10,000 simulated futures, rolling win rates from every entry point, reverse DCF</div>
+    <div><b>$</b> one chart: your stock against just buying the index — same $10,000, same start date</div>
+  </div>
+
+  <div id="error"></div>
+  <div id="status">
+    <div class="spinner"></div>
+    <div id="statusmsg">Crunching…</div>
+    <div class="statusnote">first run on a ticker takes ~10–30s — data is cached for 12h after</div>
+  </div>
+
+  <div id="compare" style="display:none">
+    <div class="card">
+      <h3 id="t-cmp">Side by side</h3>
+      <div class="chartbox" style="height:320px"><canvas id="c-cmp"></canvas></div>
+      <div class="note" id="cmp-note"></div>
+    </div>
+    <div class="card">
+      <h3>The numbers, against each other</h3>
+      <table id="tbl-cmp"></table>
+      <div class="note">Click any row for that stock's full dossier. Scores are 0–100 across
+        growth, valuation, quality, momentum, risk, and the index comparison.</div>
+    </div>
+    <div class="footer">Data: Yahoo Finance (cached 12h). Educational analysis only — not investment advice.</div>
+  </div>
+
+  <div id="results">
+    <div class="card hero">
+      <div>
+        <h2 id="r-name"></h2>
+        <div class="meta" id="r-meta"></div>
+        <div class="price" id="r-price"></div>
+      </div>
+      <div class="scorewrap">
+        <div class="scorering" id="r-score"></div>
+        <div class="verdict" id="r-verdict"></div>
+        <div class="verdict-pillars" id="r-pillars"></div>
+      </div>
+    </div>
+
+    <div class="statgrid" id="statgrid"></div>
+
+    <div class="grid2">
+      <div class="card"><h3 id="t-growth10k"></h3><div class="chartbox"><canvas id="c-growth"></canvas></div></div>
+      <div class="card"><h3>Drawdowns from peak</h3><div class="chartbox"><canvas id="c-drawdown"></canvas></div></div>
+      <div class="card"><h3>Calendar-year returns</h3><div class="chartbox"><canvas id="c-calendar"></canvas></div></div>
+      <div class="card"><h3>Forecast cone (10 years)</h3><div class="chartbox"><canvas id="c-cone"></canvas></div>
+        <div class="note" id="cone-note"></div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h3>Scenario price targets</h3>
+        <table id="tbl-scenarios"></table><div class="note" id="scenario-note"></div></div>
+      <div class="card"><h3>Monte Carlo — 10,000 simulated futures</h3>
+        <table id="tbl-mc"></table>
+        <div class="note">Joint bootstrap of historical stock+index daily returns; drift re-centered to the base scenario.</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h3 id="t-vsindex"></h3><table id="tbl-vsindex"></table></div>
+      <div class="card"><h3>Rolling holding periods — every historical entry point</h3>
+        <table id="tbl-rolling"></table></div>
+    </div>
+
+    <div class="card"><h3>Fundamentals</h3>
+      <div class="grid2 grid3">
+        <table id="tbl-val"></table><table id="tbl-growthf"></table><table id="tbl-quality"></table>
+      </div>
+    </div>
+
+    <div class="card"><h3>Score breakdown</h3><table id="tbl-score"></table>
+      <div class="note" id="rdcf-note"></div></div>
+
+    <div class="footer">Data: Yahoo Finance (cached 12h). Educational analysis only — not investment advice.
+      Forecasts are model outputs, not predictions.<br>
+      Built by <a href="http://localhost:8695">Davis Baldwin</a> — Room 03 of the portfolio.</div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const QUICK = ["AAPL","MSFT","NVDA","GOOGL","AMZN","META","TSLA","AMD","CRM","NFLX"];
+QUICK.forEach(t => {
+  const c = document.createElement("span");
+  c.className = "chip"; c.textContent = t;
+  c.onclick = () => { $("ticker").value = t; go(); };
+  $("chips").appendChild(c);
+});
+{ // one chip demonstrates compare mode
+  const c = document.createElement("span");
+  c.className = "chip chip-cmp"; c.textContent = "AAPL vs MSFT vs NVDA";
+  c.title = "Compare several tickers side by side";
+  c.onclick = () => { $("ticker").value = "AAPL, MSFT, NVDA"; go(); };
+  $("chips").appendChild(c);
+}
+
+// dark-terminal chart defaults
+Chart.defaults.color = "#9c9077";
+Chart.defaults.borderColor = "rgba(237,227,207,0.10)";
+Chart.defaults.font.family = "Menlo, Consolas, monospace";
+Chart.defaults.font.size = 10.5;
+
+const C = { stock: "#ffb454", index: "#8fa3b8", indexSoft: "#6b7684",
+  stockFill: "rgba(255,180,84,0.16)", mc: "#4fd8c4",
+  bear: "#f27d6c", conservative: "#d0a04a", base: "#ede3cf",
+  optimistic: "#6fcf8f", bull: "#4fd8c4" };
+
+const pct = (x, signed=false, d=1) => x==null ? "—" :
+  (signed && x>0 ? "+" : "") + (x*100).toFixed(d) + "%";
+const money = (x, d=2) => {
+  if (x==null) return "—";
+  const a = Math.abs(x);
+  if (a>=1e12) return "$"+(x/1e12).toFixed(d)+"T";
+  if (a>=1e9)  return "$"+(x/1e9).toFixed(d)+"B";
+  if (a>=1e6)  return "$"+(x/1e6).toFixed(d)+"M";
+  return "$"+x.toLocaleString(undefined,{maximumFractionDigits:d});
+};
+const num = (x, d=2) => x==null ? "—" : x.toFixed(d);
+const moneyK = x => x==null ? "—" :
+  Math.abs(x)>=1e6 ? "$"+(x/1e6).toFixed(1)+"M" :
+  Math.abs(x)>=1e3 ? "$"+(x/1e3).toFixed(0)+"K" : "$"+Math.round(x);
+const scoreColor = s => s>=70 ? "var(--green)" : s>=50 ? "var(--amber)" : "var(--red)";
+const cls = x => x==null ? "" : x>=0 ? "pos" : "neg";
+
+let charts = [];
+function destroyCharts(){ charts.forEach(c=>c.destroy()); charts=[]; }
+function mkChart(id, cfg){
+  cfg.options = cfg.options || {};
+  cfg.options.responsive = true;
+  cfg.options.maintainAspectRatio = false;
+  cfg.options.animation = false;
+  const c = new Chart($(id), cfg); charts.push(c); return c;
+}
+
+const MSGS = ["Downloading price history…","Reading financial statements…",
+  "Running 10,000 Monte Carlo simulations…","Comparing against the index…","Scoring…"];
+let msgTimer = null;
+
+async function go(){
+  const raw = $("ticker").value.trim().toUpperCase();
+  if (!raw) return;
+  const list = [...new Set(raw.split(/[\s,]+/).filter(Boolean))].slice(0, 10);
+  const b = $("benchmark").value;
+  $("error").style.display = "none";
+  $("results").style.display = "none";
+  $("compare").style.display = "none";
+  $("status").style.display = "block";
+  $("empty").style.display = "none";
+  let i = 0; $("statusmsg").textContent = MSGS[0];
+  clearInterval(msgTimer);
+  msgTimer = setInterval(()=>{ i=(i+1)%MSGS.length; $("statusmsg").textContent=MSGS[i]; }, 2600);
+  try {
+    if (list.length > 1) {
+      $("statusmsg").textContent = `Evaluating ${list.length} tickers…`;
+      clearInterval(msgTimer);
+      const resp = await fetch(`/api/compare/${encodeURIComponent(list.join(","))}/${encodeURIComponent(b)}`);
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "request failed");
+      renderCompare(data);
+      history.replaceState(null, "", `?t=${encodeURIComponent(list.join(","))}&b=${encodeURIComponent(b)}`);
+      document.title = `${list.join(" · ")} vs ${b} — Stock Evaluator`;
+    } else {
+      const resp = await fetch(`/api/evaluate/${encodeURIComponent(list[0])}/${encodeURIComponent(b)}`);
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "request failed");
+      render(data);
+      history.replaceState(null, "", `?t=${encodeURIComponent(list[0])}&b=${encodeURIComponent(b)}`);
+      document.title = `${list[0]} vs ${b} — Stock Evaluator`;
+    }
+  } catch (e) {
+    $("error").textContent = e.message;
+    $("error").style.display = "block";
+  } finally {
+    clearInterval(msgTimer);
+    $("status").style.display = "none";
+  }
+}
+
+const CMP_COLORS = ["#ffb454","#6fcf8f","#4fd8c4","#e08e9b","#9fb8e8",
+  "#f2ddba","#c9a0dc","#8fd06c","#f27d6c","#d0a04a"];
+
+function renderCompare(d){
+  destroyCharts();
+  const B = d.benchmark;
+  $("t-cmp").textContent = `Growth of $10,000 since ${d.common_start} (log scale)`;
+  const minLen = Math.min(...Object.values(d.chart).map(s => s.values.length));
+  const sets = [];
+  let ci = 0;
+  for (const [name, s] of Object.entries(d.chart)) {
+    const isBench = name === B;
+    sets.push({ label: name, data: s.values.slice(0, minLen), borderColor: isBench ? "#8fa3b8" : CMP_COLORS[ci++ % CMP_COLORS.length],
+      borderWidth: isBench ? 1.4 : 1.7, borderDash: isBench ? [6,4] : [], pointRadius: 0 });
+  }
+  const labels = ((Object.values(d.chart)[0] || {}).dates || []).slice(0, minLen);
+  mkChart("c-cmp", { type: "line", data: { labels, datasets: sets },
+    options: { scales: { y: { type: "logarithmic", ticks: { callback: v => money(v,0) } },
+      x: { ticks: { maxTicksLimit: 9 } } }, interaction: { mode: "index", intersect: false },
+      plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${money(c.parsed.y,0)}` } } } } });
+  $("cmp-note").textContent = `Everyone starts at $10,000 on the same date — the latest common start across these histories. Dashed grey line: ${B}.`;
+
+  const rows = [...d.rows].sort((a,b2) => (b2.score ?? -1) - (a.score ?? -1));
+  let html = `<tr><th>Ticker</th><th>Score</th><th>5y /yr</th><th>10y /yr</th><th>Sharpe</th>
+    <th>Worst crash</th><th>Beta</th><th>Fwd P/E</th><th>Rev growth</th><th>Beat ${B} (5y holds)</th></tr>`;
+  rows.forEach((r, k) => {
+    html += `<tr class="cmp-row" data-t="${r.ticker}" style="cursor:pointer">
+      <td><b style="color:${CMP_COLORS[d.rows.indexOf(r) % CMP_COLORS.length]}">${r.ticker}</b>
+        <span style="color:var(--muted);font-size:11px"> ${r.name !== r.ticker ? r.name : ""}</span></td>
+      <td style="color:${scoreColor(r.score)};font-weight:800">${r.score == null ? "—" : Math.round(r.score)}</td>
+      <td class="${cls(r.cagr_5y)}">${pct(r.cagr_5y, true)}</td>
+      <td class="${cls(r.cagr_10y)}">${pct(r.cagr_10y, true)}</td>
+      <td>${num(r.sharpe_5y)}</td>
+      <td class="neg">${pct(r.max_drawdown)}</td>
+      <td>${num(r.beta)}</td>
+      <td>${num(r.forward_pe, 1)}</td>
+      <td class="${cls(r.revenue_growth)}">${pct(r.revenue_growth, true)}</td>
+      <td>${pct(r.win_rate_5y, false, 0)}</td></tr>`;
+    html += `<tr><td colspan="10" style="color:var(--muted);font-size:11.5px;border-bottom:1px solid var(--line);padding-top:0">${r.verdict || ""}</td></tr>`;
+  });
+  $("tbl-cmp").innerHTML = html;
+  document.querySelectorAll(".cmp-row").forEach(el => {
+    el.onclick = () => { $("ticker").value = el.dataset.t; go(); };
+  });
+  if (d.errors && d.errors.length) {
+    $("error").textContent = "Skipped: " + d.errors.map(e => `${e.ticker} (${e.error})`).join(" · ");
+    $("error").style.display = "block";
+  }
+  $("compare").style.display = "block";
+}
+
+function render(d){
+  destroyCharts();
+  const h = d.hist, f = d.fund, b = d.bench, sc = d.score, mc = d.monte_carlo, fc = d.forecast;
+  const B = d.benchmark;
+
+  $("r-name").textContent = `${f.name || d.ticker} (${d.ticker})`;
+  $("r-meta").textContent = `${f.sector || "?"} · ${f.industry || "?"} · market cap ${money(f.market_cap,1)} · data since ${h.first_date}`;
+  $("r-price").textContent = money(h.last_price);
+  $("r-score").textContent = Math.round(sc.total);
+  $("r-score").style.background = scoreColor(sc.total);
+  $("r-verdict").textContent = sc.verdict;
+  { // name the strongest and weakest pillars, so "weak pillar" is never abstract
+    const pl = Object.entries(sc.pillars);
+    const best = pl.reduce((a, x) => (x[1][0] > a[1][0] ? x : a));
+    const worst = pl.reduce((a, x) => (x[1][0] < a[1][0] ? x : a));
+    $("r-pillars").innerHTML =
+      `strongest — <b>${best[0].toLowerCase()} ${Math.round(best[1][0])}</b> · ` +
+      `weakest — <b>${worst[0].toLowerCase()} ${Math.round(worst[1][0])}</b>`;
+  }
+
+  // stat cards
+  const mdd = h.max_drawdown || {};
+  const capm = b.capm || {};
+  const stats = [
+    ["5y return /yr", pct(h.cagr["5y"], true), `${B}: ${pct(b.index_cagr["5y"], true)}`],
+    ["10y return /yr", pct(h.cagr["10y"], true), `${B}: ${pct(b.index_cagr["10y"], true)}`],
+    ["$10k since "+b.common_start.slice(0,4), moneyK(b.final_10k_stock), `${B}: ${moneyK(b.final_10k_index)}`],
+    ["Volatility (1y)", pct(h.volatility_1y), "annualized"],
+    ["Sharpe (5y)", num(h.sharpe_5y), "risk-adjusted return"],
+    ["Worst crash", pct(mdd.depth), mdd.recovery_days ? `recovered in ${Math.round(mdd.recovery_days/30)} mo` : "not yet recovered"],
+    ["Off all-time high", pct(h.current_drawdown), "today"],
+    ["Beta / Alpha", `${num(capm.beta)} / ${pct(capm.alpha_annual,true)}`, "vs "+B+", 5y monthly"],
+    ["Forward P/E", num(f.valuation.forward_pe,1), `PEG ${num(f.valuation.peg)}`],
+    ["Revenue growth", pct(f.growth.revenue_growth_yoy, true), "year over year"],
+  ];
+  $("statgrid").innerHTML = stats.map(([k,v,s]) =>
+    `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+
+  // charts
+  const ch = d.charts;
+  $("t-growth10k").textContent = `Growth of $10,000 since ${b.common_start} (log scale)`;
+  mkChart("c-growth", { type: "line",
+    data: { labels: ch.growth10k.stock.dates, datasets: [
+      { label: d.ticker, data: ch.growth10k.stock.values, borderColor: C.stock, borderWidth: 1.6, pointRadius: 0 },
+      { label: B, data: ch.growth10k.index.values, borderColor: C.index, borderWidth: 1.6, pointRadius: 0 }]},
+    options: { scales: { y: { type: "logarithmic", ticks: { callback: v => money(v,0) } },
+      x: { ticks: { maxTicksLimit: 8 } } }, interaction: { mode: "index", intersect: false },
+      plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${money(c.parsed.y,0)}` } } } } });
+
+  mkChart("c-drawdown", { type: "line",
+    data: { labels: ch.drawdown.stock.dates, datasets: [
+      { label: d.ticker, data: ch.drawdown.stock.values.map(v=>v*100), borderColor: C.stock,
+        backgroundColor: C.stockFill, fill: true, borderWidth: 1, pointRadius: 0 },
+      { label: B, data: ch.drawdown.index.values.map(v=>v*100), borderColor: C.indexSoft, borderWidth: 1, pointRadius: 0 }]},
+    options: { scales: { y: { ticks: { callback: v => v+"%" } }, x: { ticks: { maxTicksLimit: 8 } } },
+      interaction: { mode: "index", intersect: false },
+      plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(1)}%` } } } } });
+
+  mkChart("c-calendar", { type: "bar",
+    data: { labels: ch.calendar.years, datasets: [
+      { label: d.ticker, data: ch.calendar.stock.map(v=>v==null?null:v*100), backgroundColor: C.stock },
+      { label: B, data: ch.calendar.index.map(v=>v==null?null:v*100), backgroundColor: C.indexSoft }]},
+    options: { scales: { y: { ticks: { callback: v => v+"%" } } },
+      plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y?.toFixed(1)}%` } } } } });
+
+  // forecast cone
+  const horizons = [0,1,3,5,10];
+  const coneColors = { bear: C.bear, conservative: C.conservative, base: C.base,
+    optimistic: C.optimistic, bull: C.bull };
+  const coneSets = Object.entries(fc.rates).map(([name, rate]) => ({
+    label: `${name} (${pct(rate,true,0)}/yr)`,
+    data: horizons.map(y => ({ x: y, y: h.last_price * Math.pow(1+rate, y) })),
+    borderColor: coneColors[name], borderWidth: 1.6, pointRadius: 0, showLine: true
+  }));
+  const mch = mc.horizons || {};
+  ["price_p5","price_p50","price_p95"].forEach((p, idx) => {
+    const pts = Object.entries(mch).map(([k,v]) => ({ x: parseInt(k), y: v[p] }));
+    if (pts.length) coneSets.push({ label: "MC "+p.split("_")[1], data: pts,
+      borderColor: C.mc, backgroundColor: C.mc, showLine: false,
+      pointStyle: ["triangle","circle","rect"][idx], pointRadius: 5 });
+  });
+  mkChart("c-cone", { type: "scatter", data: { datasets: coneSets },
+    options: { scales: { y: { type: "logarithmic", ticks: { callback: v => money(v,0) } },
+      x: { title: { display: true, text: "years ahead" }, min: 0, max: 10 } },
+      plugins: { legend: { labels: { boxWidth: 14, font: { size: 10.5 } } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${money(c.parsed.y,0)}` } } } } });
+  $("cone-note").textContent = `Lines: compound-growth scenarios. Teal markers: Monte Carlo 5th / 50th / 95th percentiles.`;
+
+  // scenario table
+  let rows = `<tr><th>Scenario</th><th>Rate/yr</th><th>1y</th><th>3y</th><th>5y</th><th>10y</th></tr>`;
+  for (const [name, rate] of Object.entries(fc.rates)) {
+    const p = fc.prices[name];
+    rows += `<tr><td style="color:${coneColors[name]};font-weight:600">${name}</td><td>${pct(rate,true)}</td>` +
+      ["1y","3y","5y","10y"].map(k=>`<td>${money(p[k],0)}</td>`).join("") + "</tr>";
+  }
+  if (fc.analyst_1y) rows += `<tr><td style="color:var(--muted)">analyst 1y range</td><td>${pct(fc.analyst_1y.implied_return,true)}</td>
+    <td colspan="4">${money(fc.analyst_1y.low,0)} – ${money(fc.analyst_1y.high,0)} (avg ${money(fc.analyst_1y.mean,0)})</td></tr>`;
+  $("tbl-scenarios").innerHTML = rows;
+  $("scenario-note").textContent = `Base = 50/50 blend of capped historical growth (${pct(d.drift.historical_capped)}) and CAPM-implied return (${pct(d.drift.capm_return)}). Conservative = index-like return.`;
+
+  // monte carlo table
+  rows = `<tr><th>Horizon</th><th>Bad (p5)</th><th>Median</th><th>Great (p95)</th><th>P(loss)</th><th>P(beat ${B})</th><th>P(2x)</th></tr>`;
+  for (const [k,v] of Object.entries(mch)) {
+    rows += `<tr><td>${k}</td><td>${money(v.price_p5,0)}</td><td><b>${money(v.price_p50,0)}</b></td>
+      <td>${money(v.price_p95,0)}</td><td>${pct(v.prob_loss,false,0)}</td>
+      <td>${pct(v.prob_beat_index,false,0)}</td><td>${pct(v.prob_double,false,0)}</td></tr>`;
+  }
+  $("tbl-mc").innerHTML = rows;
+
+  // vs index
+  $("t-vsindex").textContent = `vs an index investor (${B})`;
+  const cap = b.capture || {}, act = b.active || {};
+  rows = "";
+  const vsrows = [
+    ["Beta (5y monthly)", num(capm.beta), "movement per 1.00 of market"],
+    ["Alpha (annualized)", pct(capm.alpha_annual,true), "return beyond market exposure"],
+    ["R² to index", pct(capm.r_squared), "how index-like it trades"],
+    ["Up / down capture", `${num(cap.up_capture)} / ${num(cap.down_capture)}`, "&gt;1 up &amp; &lt;1 down is ideal"],
+    ["Active return (5y)", pct(act.active_return_annual,true), `IR ${num(act.information_ratio)}`],
+    [`$10k since ${b.common_start}`, `${moneyK(b.final_10k_stock)} vs ${moneyK(b.final_10k_index)}`,
+      `${pct(b.stock_cagr_common,true)}/yr vs ${pct(b.index_cagr_common,true)}/yr`],
+  ];
+  vsrows.forEach(([k,v,s]) => rows += `<tr><td>${k}</td><td><b>${v}</b></td><td style="text-align:right;color:var(--muted)">${s}</td></tr>`);
+  $("tbl-vsindex").innerHTML = rows;
+
+  // rolling
+  rows = `<tr><th>Hold</th><th>Worst</th><th>Median</th><th>Best</th><th>% positive</th><th>% beat ${B}</th></tr>`;
+  ["1y","3y","5y"].forEach(k => {
+    const r = h["rolling_"+k], w = (b.rolling_wins||{})[k];
+    if (r && r.median != null) rows += `<tr><td>${k}</td><td class="neg">${pct(r.worst,true)}</td>
+      <td>${pct(r.median,true)}</td><td class="pos">${pct(r.best,true)}</td>
+      <td>${pct(r.pct_positive)}</td><td>${w ? pct(w.win_rate) : "—"}</td></tr>`;
+  });
+  $("tbl-rolling").innerHTML = rows;
+
+  // fundamentals
+  const v = f.valuation, g = f.growth, q = f.quality;
+  const mkRows = (title, list) => `<tr><th colspan="2">${title}</th></tr>` +
+    list.map(([k,val]) => `<tr><td>${k}</td><td>${val}</td></tr>`).join("");
+  $("tbl-val").innerHTML = mkRows("Valuation", [
+    ["P/E trailing", num(v.trailing_pe,1)], ["P/E forward", num(v.forward_pe,1)],
+    ["PEG", num(v.peg)], ["P/S", num(v.price_to_sales,1)],
+    ["EV/EBITDA", num(v.ev_to_ebitda,1)], ["FCF yield", pct(v.fcf_yield)],
+    ["Dividend yield", pct(v.dividend_yield)]]);
+  $("tbl-growthf").innerHTML = mkRows("Growth", [
+    ["Revenue YoY", pct(g.revenue_growth_yoy,true)], ["Earnings YoY", pct(g.earnings_growth_yoy,true)],
+    [`Revenue CAGR (${g.statement_years} stmts)`, pct(g.revenue_cagr_multi,true)],
+    ["Net income CAGR", pct(g.net_income_cagr_multi,true)], ["FCF CAGR", pct(g.fcf_cagr_multi,true)]]);
+  $("tbl-quality").innerHTML = mkRows("Quality", [
+    ["Gross margin", pct(q.gross_margin)], ["Operating margin", pct(q.operating_margin)],
+    ["Net margin", pct(q.net_margin)], ["ROE", pct(q.roe)],
+    ["Debt/equity", num(q.debt_to_equity,0)], ["Rule of 40", num(q.rule_of_40,0)]]);
+
+  // score
+  rows = `<tr><th>Pillar</th><th>Score</th><th></th><th>Weight</th></tr>`;
+  for (const [name, [s, cov, w]] of Object.entries(sc.pillars)) {
+    rows += `<tr><td>${name}</td><td style="color:${scoreColor(s)};font-weight:700">${Math.round(s)}</td>
+      <td><span class="pillbar"><div style="width:${s}%;background:${scoreColor(s)}"></div></span></td>
+      <td>${Math.round(w*100)}%</td></tr>`;
+  }
+  rows += `<tr><td><b>Composite</b></td><td style="color:${scoreColor(sc.total)};font-weight:800">${Math.round(sc.total)}</td>
+    <td><span class="pillbar"><div style="width:${sc.total}%;background:${scoreColor(sc.total)}"></div></span></td><td>100%</td></tr>`;
+  $("tbl-score").innerHTML = rows;
+  const rd = d.reverse_dcf;
+  $("rdcf-note").textContent = rd && rd.implied_growth != null
+    ? `Reverse DCF: today's price already assumes ${pct(rd.implied_growth,true)}/yr free-cash-flow growth for 10 years.`
+    : "";
+
+  $("results").style.display = "block";
+}
+
+// deep links: ?t=AAPL,MSFT&b=VOO evaluates on arrival
+{
+  const q = new URLSearchParams(location.search);
+  const t = q.get("t");
+  if (t) {
+    $("ticker").value = t;
+    const b = q.get("b");
+    if (b && [...$("benchmark").options].some(o => o.value === b)) $("benchmark").value = b;
+    go();
+  }
+}
+</script>
+</body>
+</html>
