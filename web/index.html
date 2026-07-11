@@ -105,6 +105,8 @@
 
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .grid3 { grid-template-columns: 1fr 1fr 1fr; }
+  /* grid children may never dictate the page width — wide tables scroll inside their card */
+  .grid2 > *, .grid3 > * { min-width: 0; }
   @media (max-width: 860px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
   .card h3 { margin: 0 0 12px; font-family: var(--mono); font-size: 12px;
     letter-spacing: 0.06em; color: var(--ink); font-weight: 700; }
@@ -139,6 +141,9 @@
     /* wide tables scroll inside their card, never the page */
     .card table { display: block; overflow-x: auto; white-space: nowrap; }
     .grid3 table { white-space: normal; }
+    /* prose cells (verdicts, analyst ranges) wrap instead of stretching the scroll */
+    .card table td[colspan] { white-space: normal; }
+    .pillbar { width: 64px; }
   }
 </style>
 </head>
@@ -299,6 +304,11 @@ const cls = x => x==null ? "" : x>=0 ? "pos" : "neg";
 
 let charts = [];
 function destroyCharts(){ charts.forEach(c=>c.destroy()); charts=[]; }
+// log axes: label only the 1/2/5 steps so ticks never collide on small screens
+const logTick = v => {
+  const m = v / Math.pow(10, Math.floor(Math.log10(v) + 1e-9));
+  return Math.abs(m-1) < 0.01 || Math.abs(m-2) < 0.01 || Math.abs(m-5) < 0.01 ? money(v,0) : "";
+};
 function mkChart(id, cfg){
   cfg.options = cfg.options || {};
   cfg.options.responsive = true;
@@ -368,7 +378,7 @@ function renderCompare(d){
   }
   const labels = ((Object.values(d.chart)[0] || {}).dates || []).slice(0, minLen);
   mkChart("c-cmp", { type: "line", data: { labels, datasets: sets },
-    options: { scales: { y: { type: "logarithmic", ticks: { callback: v => money(v,0) } },
+    options: { scales: { y: { type: "logarithmic", ticks: { callback: logTick } },
       x: { ticks: { maxTicksLimit: 9 } } }, interaction: { mode: "index", intersect: false },
       plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${money(c.parsed.y,0)}` } } } } });
   $("cmp-note").textContent = `Everyone starts at $10,000 on the same date — the latest common start across these histories. Dashed grey line: ${B}.`;
@@ -447,7 +457,7 @@ function render(d){
     data: { labels: ch.growth10k.stock.dates, datasets: [
       { label: d.ticker, data: ch.growth10k.stock.values, borderColor: C.stock, borderWidth: 1.6, pointRadius: 0 },
       { label: B, data: ch.growth10k.index.values, borderColor: C.index, borderWidth: 1.6, pointRadius: 0 }]},
-    options: { scales: { y: { type: "logarithmic", ticks: { callback: v => money(v,0) } },
+    options: { scales: { y: { type: "logarithmic", ticks: { callback: logTick } },
       x: { ticks: { maxTicksLimit: 8 } } }, interaction: { mode: "index", intersect: false },
       plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${money(c.parsed.y,0)}` } } } } });
 
@@ -484,7 +494,7 @@ function render(d){
       pointStyle: ["triangle","circle","rect"][idx], pointRadius: 5 });
   });
   mkChart("c-cone", { type: "scatter", data: { datasets: coneSets },
-    options: { scales: { y: { type: "logarithmic", ticks: { callback: v => money(v,0) } },
+    options: { scales: { y: { type: "logarithmic", ticks: { callback: logTick } },
       x: { title: { display: true, text: "years ahead" }, min: 0, max: 10 } },
       plugins: { legend: { labels: { boxWidth: 14, font: { size: 10.5 } } },
         tooltip: { callbacks: { label: c => `${c.dataset.label}: ${money(c.parsed.y,0)}` } } } } });
