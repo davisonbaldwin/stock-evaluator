@@ -49,7 +49,7 @@ def fetch_history(ticker: str, period: str = "max") -> pd.DataFrame:
         return cached
     df = yf.Ticker(ticker).history(period=period, auto_adjust=True)
     if df.empty:
-        raise ValueError(f"No price history returned for {ticker!r} — check the symbol.")
+        raise ValueError(f"No price history returned for {ticker!r}. Check the symbol.")
     df.index = df.index.tz_localize(None)
     _cache_put(key, df)
     return df

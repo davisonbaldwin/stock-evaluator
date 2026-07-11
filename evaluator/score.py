@@ -103,14 +103,14 @@ def compute(hist: dict, fund: dict, bench: dict, mc: dict, rdcf: Optional[dict])
     coverage = sum(cov * weight for _, cov, weight in pillars.values())
 
     if total >= 75:
-        verdict = "Strong — broad-based case for owning over the index"
+        verdict = "Strong: broad-based case for owning over the index"
     elif total >= 60:
-        verdict = "Favorable — edge over the index, watch the weak pillar(s)"
+        verdict = "Favorable: edge over the index, watch the weak pillar(s)"
     elif total >= 45:
-        verdict = "Mixed — no clear edge over the index"
+        verdict = "Mixed: no clear edge over the index"
     elif total >= 30:
-        verdict = "Weak — index likely the better risk-adjusted hold"
+        verdict = "Weak: index likely the better risk-adjusted hold"
     else:
-        verdict = "Poor — significant red flags across pillars"
+        verdict = "Poor: significant red flags across pillars"
 
     return {"pillars": pillars, "total": total, "coverage": coverage, "verdict": verdict}

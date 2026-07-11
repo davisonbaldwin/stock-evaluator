@@ -169,7 +169,7 @@ def render(r: dict, console: Console) -> None:
                   f"and CAPM-implied return ({pct(r['drift']['capm_return'])})[/dim]")
 
     if mc.get("horizons"):
-        t = Table(title=f"Monte Carlo — {mc['n_sims']:,} joint bootstrap paths "
+        t = Table(title=f"Monte Carlo: {mc['n_sims']:,} joint bootstrap paths "
                         f"(stock & index sampled together, drift re-centered to base)",
                   box=box.SIMPLE_HEAVY)
         t.add_column("Horizon")
@@ -206,7 +206,7 @@ def render(r: dict, console: Console) -> None:
               f"[bold {_score_color(score['total'])}]{score['total']:.0f}[/bold {_score_color(score['total'])}]",
               "100%", f"{score['coverage']:.0%}")
     console.print(t)
-    console.print("[dim]  Educational analysis from public data — not investment advice. "
+    console.print("[dim]  Educational analysis from public data, not investment advice. "
                   "Forecasts are model outputs, not predictions.[/dim]\n")
 
 
@@ -249,7 +249,7 @@ def save_charts(r: dict, out_dir: Path) -> Path:
     stock, index = r["stock_close"], r["index_close"]
 
     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-    fig.suptitle(f"{ticker} vs {benchmark} — {pd.Timestamp.today():%Y-%m-%d}", fontsize=14)
+    fig.suptitle(f"{ticker} vs {benchmark} · {pd.Timestamp.today():%Y-%m-%d}", fontsize=14)
 
     # 1. growth of $10k (log scale)
     ax = axes[0][0]
