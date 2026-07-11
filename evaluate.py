@@ -17,23 +17,32 @@ from pathlib import Path
 from rich.console import Console
 
 from evaluator import benchmark as bench_mod
-from evaluator import data, forecast, fundamentals, history, report, score as score_mod
+from evaluator import data, factors, forecast, fundamentals, history, report, score as score_mod
 
 ROOT = Path(__file__).resolve().parent
 
 
-def evaluate_ticker(ticker: str, benchmark: str, n_sims: int, console: Console) -> dict:
+def evaluate_ticker(ticker: str, benchmark: str, n_sims: int, console: Console,
+                    progress=None) -> dict:
+    """Full dossier for one ticker. `progress(stage)` is called as each real stage
+    of the work begins, so callers (the web app's live status line) can narrate it."""
+    say = progress or (lambda msg: None)
     console.print(f"[dim]Fetching data for {ticker}…[/dim]")
+    say(f"Downloading price history for {ticker}…")
     stock_close = data.fetch_history(ticker)["Close"]
     index_close = data.fetch_history(benchmark)["Close"]
+    say("Reading financial statements…")
     info = data.fetch_info(ticker)
     fins = data.fetch_financials(ticker)
     targets = data.fetch_analyst_targets(ticker)
     rf = data.risk_free_rate()
 
+    say("Measuring history against the index…")
     hist = history.analyze(stock_close, rf)
     fund = fundamentals.analyze(info, fins)
     bench = bench_mod.compare(stock_close, index_close, rf)
+    say("Running the three-factor regression…")
+    bench["fama_french"] = factors.fama_french_regression(stock_close)
 
     drift = forecast.blended_drift(hist, bench["capm"], rf)
     index_drift_candidates = [bench["index_cagr"].get(k) for k in ("5y", "10y")
@@ -44,9 +53,11 @@ def evaluate_ticker(ticker: str, benchmark: str, n_sims: int, console: Console) 
 
     fc = forecast.scenario_projections(hist["last_price"], drift, hist["volatility_5y"] or 0.35,
                                        targets, index_drift)
+    say(f"Running {n_sims:,} Monte Carlo simulations…")
     mc = forecast.monte_carlo(stock_close, index_close, drift, index_drift, n_sims=n_sims)
     rdcf = forecast.reverse_dcf(fund["market_cap"],
                                 info.get("freeCashflow") if isinstance(info.get("freeCashflow"), (int, float)) else None)
+    say("Scoring…")
     sc = score_mod.compute(hist, fund, bench, mc, rdcf)
 
     return {

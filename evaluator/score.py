@@ -11,7 +11,14 @@ from typing import List, Optional, Tuple
 
 def _band(value: Optional[float], bands: List[Tuple[float, float]],
           higher_is_better: bool = True) -> Optional[float]:
-    """Linear interpolation through (threshold, score) anchor points."""
+    """Linear interpolation through (threshold, score) anchor points.
+
+    The anchor points already encode the metric's direction (a cheap P/E is
+    authored as a high score), so `higher_is_better` is documentation of that
+    direction, not a transform. Flipping the interpolated score again would
+    invert every lower-is-better metric: this was a live bug, caught by the
+    test suite, that punished cheap valuations and rewarded volatility.
+    """
     if value is None:
         return None
     pts = sorted(bands)
@@ -25,7 +32,7 @@ def _band(value: Optional[float], bands: List[Tuple[float, float]],
             if x0 <= value <= x1:
                 score = y0 + (y1 - y0) * (value - x0) / (x1 - x0)
                 break
-    return score if higher_is_better else 100 - score
+    return score
 
 
 def _avg(scores: List[Optional[float]]) -> Tuple[float, float]:
