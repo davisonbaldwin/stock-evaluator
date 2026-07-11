@@ -93,6 +93,40 @@
   .verdict { font-size: 12.5px; color: var(--muted); max-width: 210px; margin: 0 auto;
     line-height: 1.45; }
 
+  /* ---- the verdict: lead with the answer, make the index gap the hero ---- */
+  .verdict-card .answer { font-family: var(--sans); font-size: 27px; font-weight: 700;
+    line-height: 1.15; margin-bottom: 4px; }
+  .verdict-card .answer-sub { color: var(--muted); font-size: 13.5px; margin-bottom: 18px; }
+  .tenk { display: grid; grid-template-columns: auto 1fr auto; gap: 10px 12px;
+    align-items: center; max-width: 580px; margin-bottom: 8px; }
+  .tenk .lbl { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .tenk .bar { height: 20px; border-radius: 2px; min-width: 3px; }
+  .tenk .val { font-family: var(--mono); font-size: 17px; font-weight: 700; }
+  .tenk-cap { font-size: 11.5px; color: var(--muted); margin-bottom: 5px; }
+  .tenk-annual { font-family: var(--mono); font-size: 12.5px; color: var(--muted);
+    margin-bottom: 18px; }
+  .tenk-annual b { color: var(--ink); font-weight: 700; }
+  .caveat { display: flex; gap: 9px; border-top: 1px solid var(--line);
+    padding-top: 14px; margin-bottom: 16px; }
+  .caveat .ico { color: var(--amber); font-size: 12px; line-height: 1.5; flex: none; }
+  .caveat .txt { font-size: 13px; color: var(--muted); line-height: 1.55; }
+  .caveat .txt b { color: var(--ink); font-weight: 500; }
+  .scoreline { border-top: 1px solid var(--line); padding-top: 14px; }
+  .scoreline .top { display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .scoreline .top .big { font-family: var(--mono); font-size: 16px; font-weight: 700;
+    color: var(--ink); }
+  .meter { height: 7px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
+  .meter > div { height: 100%; }
+  .pillchips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .pillchip { font-family: var(--mono); font-size: 11px; padding: 3px 10px;
+    border: 1px solid var(--line); color: var(--muted); }
+  @media (max-width: 560px) {
+    .verdict-card .answer { font-size: 22px; }
+    .tenk .val { font-size: 15px; }
+  }
+
   .statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
     gap: 10px; margin-bottom: 16px; }
   .stat { background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; }
@@ -211,10 +245,25 @@
         <div class="meta" id="r-meta"></div>
         <div class="price" id="r-price"></div>
       </div>
-      <div class="scorewrap">
-        <div class="scorering" id="r-score"></div>
-        <div class="verdict" id="r-verdict"></div>
-        <div class="verdict-pillars" id="r-pillars"></div>
+    </div>
+
+    <div class="card verdict-card">
+      <div class="answer" id="v-head"></div>
+      <div class="answer-sub" id="v-sub"></div>
+      <div class="tenk">
+        <span class="lbl" id="v-tk-slabel"></span><span class="bar" id="v-tk-sbar"></span><span class="val" id="v-tk-sval"></span>
+        <span class="lbl" id="v-tk-ilabel"></span><span class="bar" id="v-tk-ibar"></span><span class="val" id="v-tk-ival"></span>
+      </div>
+      <div class="tenk-cap" id="v-tk-cap"></div>
+      <div class="tenk-annual" id="v-annual"></div>
+      <div class="caveat">
+        <span class="ico">&#9650;</span>
+        <div class="txt"><b id="v-cav-head"></b> <span id="v-cav-txt"></span></div>
+      </div>
+      <div class="scoreline">
+        <div class="top"><span id="v-verdict"></span><span><span class="big" id="v-score">&ndash;</span> / 100</span></div>
+        <div class="meter"><div id="v-meter"></div></div>
+        <div class="pillchips" id="v-pills"></div>
       </div>
     </div>
 
@@ -266,13 +315,6 @@ QUICK.forEach(t => {
   c.onclick = () => { $("ticker").value = t; go(); };
   $("chips").appendChild(c);
 });
-{ // one chip demonstrates compare mode
-  const c = document.createElement("span");
-  c.className = "chip chip-cmp"; c.textContent = "AAPL vs MSFT vs NVDA";
-  c.title = "Compare several tickers side by side";
-  c.onclick = () => { $("ticker").value = "AAPL, MSFT, NVDA"; go(); };
-  $("chips").appendChild(c);
-}
 
 // dark-terminal chart defaults
 Chart.defaults.color = "#9c9077";
@@ -345,9 +387,7 @@ async function go(){
       history.replaceState(null, "", `?t=${encodeURIComponent(list.join(","))}&b=${encodeURIComponent(b)}`);
       document.title = `${list.join(" · ")} vs ${b} · Stock Evaluator`;
     } else {
-      const resp = await fetch(`/api/evaluate/${encodeURIComponent(list[0])}/${encodeURIComponent(b)}`);
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "request failed");
+      const data = await evaluateOne(list[0], b);
       render(data);
       history.replaceState(null, "", `?t=${encodeURIComponent(list[0])}&b=${encodeURIComponent(b)}`);
       document.title = `${list[0]} vs ${b} · Stock Evaluator`;
@@ -359,6 +399,32 @@ async function go(){
     clearInterval(msgTimer);
     $("status").style.display = "none";
   }
+}
+
+// single-ticker evaluation: SSE streams the real stage names while the server
+// works; a cached dossier skips straight to the result. Falls back to plain fetch.
+async function fetchOne(t, b){
+  const resp = await fetch(`/api/evaluate/${encodeURIComponent(t)}/${encodeURIComponent(b)}`);
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || "request failed");
+  return data;
+}
+function evaluateOne(t, b){
+  if (!window.EventSource) return fetchOne(t, b);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const es = new EventSource(`/api/evaluate_stream/${encodeURIComponent(t)}/${encodeURIComponent(b)}`);
+    const finish = (fn, v) => { if (!settled) { settled = true; es.close(); fn(v); } };
+    es.addEventListener("stage", e => {
+      clearInterval(msgTimer);                      // real stages replace the canned rotation
+      $("statusmsg").textContent = JSON.parse(e.data);
+    });
+    es.addEventListener("result", e => finish(resolve, JSON.parse(e.data)));
+    es.addEventListener("fail", e => finish(reject, new Error(JSON.parse(e.data))));
+    es.onerror = () => {                            // proxy or browser quirk: use the plain route
+      if (!settled) { settled = true; es.close(); fetchOne(t, b).then(resolve, reject); }
+    };
+  });
 }
 
 const CMP_COLORS = ["#ffb454","#6fcf8f","#4fd8c4","#e08e9b","#9fb8e8",
@@ -418,19 +484,84 @@ function render(d){
   const B = d.benchmark;
 
   $("r-name").textContent = `${f.name || d.ticker} (${d.ticker})`;
-  $("r-meta").textContent = `${f.sector || "?"} · ${f.industry || "?"} · market cap ${money(f.market_cap,1)} · data since ${h.first_date}`;
-  $("r-price").textContent = money(h.last_price);
-  $("r-score").textContent = Math.round(sc.total);
-  $("r-score").style.background = scoreColor(sc.total);
-  $("r-verdict").textContent = sc.verdict;
-  { // name the strongest and weakest pillars, so "weak pillar" is never abstract
-    const pl = Object.entries(sc.pillars);
-    const best = pl.reduce((a, x) => (x[1][0] > a[1][0] ? x : a));
-    const worst = pl.reduce((a, x) => (x[1][0] < a[1][0] ? x : a));
-    $("r-pillars").innerHTML =
-      `strongest: <b>${best[0].toLowerCase()} ${Math.round(best[1][0])}</b> · ` +
-      `weakest: <b>${worst[0].toLowerCase()} ${Math.round(worst[1][0])}</b>`;
+  $("r-meta").textContent = `${f.sector || "?"} · ${f.industry || "?"} · market cap ${money(f.market_cap,1)} · data since ${h.first_date}`
+    + (d.as_of ? ` · updated ${d.as_of}` : "") + (d.stale ? " · refreshing now…" : "");
+  if (d.stale && !d._retried) {
+    // the server is rebuilding in the background: swap in the fresh dossier when it lands
+    setTimeout(async () => {
+      try {
+        const fresh = await fetchOne(d.ticker, d.benchmark);
+        if (fresh.as_of !== d.as_of) { fresh._retried = true; render(fresh); }
+      } catch (e) { /* keep showing the cached dossier */ }
+    }, 30000);
   }
+  $("r-price").textContent = money(h.last_price);
+
+  // ---- the verdict: answer first, the index gap as the hero, score as support ----
+  const s10 = b.final_10k_stock, i10 = b.final_10k_index;
+  const ratio = (s10 && i10) ? s10 / i10 : null;
+  const startYr = parseInt(b.common_start.slice(0, 4));
+  const yrs = (new Date().getFullYear()) - startYr;
+  let head;
+  if (ratio == null) head = `${d.ticker} vs the index`;
+  else if (ratio >= 1.15) head = `${d.ticker} beat the index.`;
+  else if (ratio <= 0.87) head = `${d.ticker} trailed the index.`;
+  else head = `${d.ticker} roughly matched the index.`;
+  $("v-head").textContent = head;
+  $("v-sub").textContent = (s10 && i10)
+    ? `over ${yrs} years, the same $10,000 became —` : "checked against the index";
+
+  const maxv = Math.max(s10 || 0, i10 || 0) || 1;
+  $("v-tk-slabel").textContent = d.ticker;
+  $("v-tk-sbar").style.width = Math.max(3, (s10 || 0) / maxv * 100) + "%";
+  $("v-tk-sbar").style.background = C.stock;
+  $("v-tk-sval").textContent = moneyK(s10);
+  $("v-tk-ilabel").textContent = B;
+  $("v-tk-ibar").style.width = Math.max(3, (i10 || 0) / maxv * 100) + "%";
+  $("v-tk-ibar").style.background = C.index;
+  $("v-tk-ival").textContent = moneyK(i10);
+  $("v-tk-ival").style.color = "var(--muted)";
+  { let cap = `same $10,000, same ${startYr} start`;
+    if (ratio && ratio >= 2) cap += ` · ${d.ticker} returned ~${Math.round(ratio)}× the index`;
+    else if (ratio && ratio <= 0.5) cap += ` · the index returned ~${Math.round(1 / ratio)}× ${d.ticker}`;
+    $("v-tk-cap").textContent = cap; }
+
+  { // the per-year edge — the "is this repeatable" number, not just the cumulative headline
+    const horizon = (h.cagr && h.cagr["10y"] != null) ? "10y" : "5y";
+    const sCagr = h.cagr ? h.cagr[horizon] : null, iCagr = b.index_cagr ? b.index_cagr[horizon] : null;
+    if (sCagr != null && iCagr != null) {
+      $("v-annual").innerHTML = `annualized: <b>${pct(sCagr, true)}/yr</b> vs the index&rsquo;s <b>${pct(iCagr, true)}/yr</b> over ${horizon.replace("y", " years")}`;
+      $("v-tk-cap").style.marginBottom = "";
+    } else { $("v-annual").textContent = ""; $("v-tk-cap").style.marginBottom = "18px"; }
+  }
+
+  { // honest caveat, named from the real weakest pillar
+    const pl = Object.entries(sc.pillars);
+    const worst = pl.reduce((a, x) => (x[1][0] < a[1][0] ? x : a));
+    const worstName = worst[0].toLowerCase(), worstScore = Math.round(worst[1][0]);
+    const val = f.valuation || {}, fpe = val.forward_pe, peg = val.peg;
+    let cHead, cTxt;
+    if (/valuation/i.test(worst[0]) && worstScore < 55) {
+      cHead = (ratio && ratio >= 1.15) ? "But the edge is historical." : "Priced richly.";
+      cTxt = `It's expensive today — valuation scores <b>${worstScore}/100</b>`
+        + (fpe != null ? `, a forward P/E of <b>${num(fpe, 1)}</b>` : "")
+        + (peg != null ? ` and a PEG of <b>${num(peg)}</b>` : "")
+        + `. Whether it keeps beating the index is the open question.`;
+    } else {
+      cHead = "Watch the weak spot.";
+      cTxt = `Its weakest pillar is <b>${worstName} ${worstScore}/100</b> — the full dossier below shows why.`;
+    }
+    $("v-cav-head").textContent = cHead;
+    $("v-cav-txt").innerHTML = cTxt;
+  }
+
+  $("v-verdict").textContent = sc.verdict;
+  $("v-score").textContent = Math.round(sc.total);
+  $("v-score").style.color = scoreColor(sc.total);
+  $("v-meter").style.width = Math.round(sc.total) + "%";
+  $("v-meter").style.background = scoreColor(sc.total);
+  $("v-pills").innerHTML = Object.entries(sc.pillars).map(([k, v]) =>
+    `<span class="pillchip">${k.toLowerCase()} <b style="color:${scoreColor(v[0])};font-weight:700">${Math.round(v[0])}</b></span>`).join("");
 
   // stat cards
   const mdd = h.max_drawdown || {};
@@ -525,9 +656,15 @@ function render(d){
   $("t-vsindex").textContent = `vs an index investor (${B})`;
   const cap = b.capture || {}, act = b.active || {};
   rows = "";
+  const ff = b.fama_french || {};
   const vsrows = [
     ["Beta (5y monthly)", num(capm.beta), "movement per 1.00 of market"],
     ["Alpha (annualized)", pct(capm.alpha_annual,true), "return beyond market exposure"],
+    ...(ff.alpha_annual != null ? [
+      ["3-factor alpha", pct(ff.alpha_annual,true), "beyond market + size + value (Fama-French)"],
+      ["Factor betas", `${num(ff.beta_mkt)} mkt / ${num(ff.beta_smb)} size / ${num(ff.beta_hml)} value`,
+       `R² ${pct(ff.r_squared)}`],
+    ] : []),
     ["R² to index", pct(capm.r_squared), "how index-like it trades"],
     ["Up / down capture", `${num(cap.up_capture)} / ${num(cap.down_capture)}`, "&gt;1 up &amp; &lt;1 down is ideal"],
     ["Active return (5y)", pct(act.active_return_annual,true), `IR ${num(act.information_ratio)}`],
