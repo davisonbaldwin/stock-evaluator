@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Local web dashboard for the stock evaluator.
 
-Runs at http://localhost:8742 — open it in any browser, type a ticker, done.
+Runs at http://localhost:8742 - open it in any browser, type a ticker, done.
 """
 from __future__ import annotations
 

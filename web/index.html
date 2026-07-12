@@ -147,7 +147,7 @@
 
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .grid3 { grid-template-columns: 1fr 1fr 1fr; }
-  /* grid children may never dictate the page width — wide tables scroll inside their card */
+  /* grid children may never dictate the page width: wide tables scroll inside their card */
   .grid2 > *, .grid3 > * { min-width: 0; }
   @media (max-width: 860px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
   .card h3 { margin: 0 0 12px; font-family: var(--mono); font-size: 12px;
@@ -337,7 +337,7 @@
 
     <div class="footer">Data: Yahoo Finance (cached 12h). Educational analysis only, not investment advice.
       Forecasts are model outputs, not predictions.<br>
-      Built by <a href="https://davisonbaldwin.github.io">Davis Baldwin</a> — Room 03 of the portfolio.</div>
+      Built by <a href="https://davisonbaldwin.github.io">Davis Baldwin</a> · Room 03 of the portfolio.</div>
   </div>
 </div>
 
@@ -362,18 +362,18 @@ const C = { stock: "#ffb454", index: "#8fa3b8", indexSoft: "#6b7684",
   bear: "#f27d6c", conservative: "#d0a04a", base: "#ede3cf",
   optimistic: "#6fcf8f", bull: "#4fd8c4" };
 
-const pct = (x, signed=false, d=1) => x==null ? "—" :
+const pct = (x, signed=false, d=1) => x==null ? "–" :
   (signed && x>0 ? "+" : "") + (x*100).toFixed(d) + "%";
 const money = (x, d=2) => {
-  if (x==null) return "—";
+  if (x==null) return "–";
   const a = Math.abs(x);
   if (a>=1e12) return "$"+(x/1e12).toFixed(d)+"T";
   if (a>=1e9)  return "$"+(x/1e9).toFixed(d)+"B";
   if (a>=1e6)  return "$"+(x/1e6).toFixed(d)+"M";
   return "$"+x.toLocaleString(undefined,{maximumFractionDigits:d});
 };
-const num = (x, d=2) => x==null ? "—" : x.toFixed(d);
-const moneyK = x => x==null ? "—" :
+const num = (x, d=2) => x==null ? "–" : x.toFixed(d);
+const moneyK = x => x==null ? "–" :
   Math.abs(x)>=1e6 ? "$"+(x/1e6).toFixed(1)+"M" :
   Math.abs(x)>=1e3 ? "$"+(x/1e3).toFixed(0)+"K" : "$"+Math.round(x);
 const scoreColor = s => s>=70 ? "var(--green)" : s>=50 ? "var(--amber)" : "var(--red)";
@@ -491,7 +491,7 @@ function renderCompare(d){
     html += `<tr class="cmp-row" data-t="${r.ticker}" style="cursor:pointer">
       <td><b style="color:${CMP_COLORS[d.rows.indexOf(r) % CMP_COLORS.length]}">${r.ticker}</b>
         <span style="color:var(--muted);font-size:11px"> ${r.name !== r.ticker ? r.name : ""}</span></td>
-      <td style="color:${scoreColor(r.score)};font-weight:800">${r.score == null ? "—" : Math.round(r.score)}</td>
+      <td style="color:${scoreColor(r.score)};font-weight:800">${r.score == null ? "–" : Math.round(r.score)}</td>
       <td class="${cls(r.cagr_5y)}">${pct(r.cagr_5y, true)}</td>
       <td class="${cls(r.cagr_10y)}">${pct(r.cagr_10y, true)}</td>
       <td>${num(r.sharpe_5y)}</td>
@@ -544,7 +544,7 @@ function render(d){
   else head = `${d.ticker} roughly matched the index.`;
   $("v-head").textContent = head;
   $("v-sub").textContent = (s10 && i10)
-    ? `over ${yrs} years, the same $10,000 became —` : "checked against the index";
+    ? `over ${yrs} years, the same $10,000 became:` : "checked against the index";
 
   const maxv = Math.max(s10 || 0, i10 || 0) || 1;
   $("v-tk-slabel").textContent = d.ticker;
@@ -561,7 +561,7 @@ function render(d){
     else if (ratio && ratio <= 0.5) cap += ` · the index returned ~${Math.round(1 / ratio)}× ${d.ticker}`;
     $("v-tk-cap").textContent = cap; }
 
-  { // the per-year edge — the "is this repeatable" number, not just the cumulative headline
+  { // the per-year edge: the "is this repeatable" number, not just the cumulative headline
     const horizon = (h.cagr && h.cagr["10y"] != null) ? "10y" : "5y";
     const sCagr = h.cagr ? h.cagr[horizon] : null, iCagr = b.index_cagr ? b.index_cagr[horizon] : null;
     if (sCagr != null && iCagr != null) {
@@ -578,13 +578,13 @@ function render(d){
     let cHead, cTxt;
     if (/valuation/i.test(worst[0]) && worstScore < 55) {
       cHead = (ratio && ratio >= 1.15) ? "But the edge is historical." : "Priced richly.";
-      cTxt = `It's expensive today — valuation scores <b>${worstScore}/100</b>`
+      cTxt = `It's expensive today: valuation scores <b>${worstScore}/100</b>`
         + (fpe != null ? `, a forward P/E of <b>${num(fpe, 1)}</b>` : "")
         + (peg != null ? ` and a PEG of <b>${num(peg)}</b>` : "")
         + `. Whether it keeps beating the index is the open question.`;
     } else {
       cHead = "Watch the weak spot.";
-      cTxt = `Its weakest pillar is <b>${worstName} ${worstScore}/100</b> — the full dossier below shows why.`;
+      cTxt = `Its weakest pillar is <b>${worstName} ${worstScore}/100</b>. The full dossier below shows why.`;
     }
     $("v-cav-head").textContent = cHead;
     $("v-cav-txt").innerHTML = cTxt;
@@ -715,7 +715,7 @@ function render(d){
     const r = h["rolling_"+k], w = (b.rolling_wins||{})[k];
     if (r && r.median != null) rows += `<tr><td>${k}</td><td class="neg">${pct(r.worst,true)}</td>
       <td>${pct(r.median,true)}</td><td class="pos">${pct(r.best,true)}</td>
-      <td>${pct(r.pct_positive)}</td><td>${w ? pct(w.win_rate) : "—"}</td></tr>`;
+      <td>${pct(r.pct_positive)}</td><td>${w ? pct(w.win_rate) : "–"}</td></tr>`;
   });
   $("tbl-rolling").innerHTML = rows;
 

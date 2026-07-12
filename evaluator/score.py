@@ -1,7 +1,7 @@
 """Composite 0-100 score across six pillars, with a plain-English verdict.
 
 Scoring philosophy: each metric maps to 0-100 through bands chosen for large-cap
-tech. Missing data scores a neutral 50 rather than penalizing the stock — the
+tech. Missing data scores a neutral 50 rather than penalizing the stock - the
 report flags low data coverage separately.
 """
 from __future__ import annotations

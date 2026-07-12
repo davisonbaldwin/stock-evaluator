@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tech Stock Evaluator — historical analysis, forecasts, and index benchmarking.
+"""Tech Stock Evaluator: historical analysis, forecasts, and index benchmarking.
 
 Usage:
     python evaluate.py NVDA

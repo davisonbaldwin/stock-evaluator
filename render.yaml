@@ -1,4 +1,4 @@
-# Render blueprint — deploy the Stock Evaluator as a web service.
+# Render blueprint - deploy the Stock Evaluator as a web service.
 # In the Render dashboard: New → Blueprint → point it at this repo.
 services:
   - type: web

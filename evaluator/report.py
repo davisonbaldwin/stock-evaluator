@@ -14,14 +14,14 @@ from rich.table import Table
 
 def pct(x: Optional[float], signed: bool = False, digits: int = 1) -> str:
     if x is None:
-        return "—"
+        return "–"
     sign = "+" if signed and x > 0 else ""
     return f"{sign}{x * 100:.{digits}f}%"
 
 
 def money(x: Optional[float], digits: int = 2) -> str:
     if x is None:
-        return "—"
+        return "–"
     for unit, scale in [("T", 1e12), ("B", 1e9), ("M", 1e6)]:
         if abs(x) >= scale:
             return f"${x / scale:.{digits}f}{unit}"
@@ -29,7 +29,7 @@ def money(x: Optional[float], digits: int = 2) -> str:
 
 
 def num(x: Optional[float], digits: int = 2) -> str:
-    return "—" if x is None else f"{x:.{digits}f}"
+    return "–" if x is None else f"{x:.{digits}f}"
 
 
 def _score_color(s: float) -> str:
@@ -67,7 +67,7 @@ def render(r: dict, console: Console) -> None:
     t.add_row(ticker, *[pct(hist["cagr"].get(k), signed=True) for k in ("1y", "3y", "5y", "10y", "15y", "max")])
     idx_cagr = bench["index_cagr"]
     t.add_row(benchmark, *[pct(idx_cagr.get(k), signed=True) for k in ("1y", "3y", "5y", "10y")],
-              "—", pct(bench["index_cagr_common"], signed=True))
+              "–", pct(bench["index_cagr_common"], signed=True))
     console.print(t)
 
     mdd = hist["max_drawdown"]
@@ -99,7 +99,7 @@ def render(r: dict, console: Console) -> None:
         if roll:
             t.add_row(label, pct(roll["worst"], signed=True), pct(roll["median"], signed=True),
                       pct(roll["best"], signed=True), pct(roll["pct_positive"]),
-                      pct(win["win_rate"]) if win else "—")
+                      pct(win["win_rate"]) if win else "–")
     console.print(t)
 
     # --- fundamentals
@@ -227,7 +227,7 @@ def comparison_table(results: list, console: Console) -> None:
         ("3y windows beating index", lambda r: pct(((r["bench"]["rolling_wins"] or {}).get("3y") or {}).get("win_rate"))),
         ("MC P(beat index, 5y)", lambda r: pct((r["monte_carlo"].get("horizons", {}).get("5y") or {}).get("prob_beat_index"), digits=0)),
         ("MC median 5y CAGR", lambda r: pct((r["monte_carlo"].get("horizons", {}).get("5y") or {}).get("cagr_p50"), True)),
-        ("Implied FCF growth (rDCF)", lambda r: pct((r["reverse_dcf"] or {}).get("implied_growth"), True) if r["reverse_dcf"] else "—"),
+        ("Implied FCF growth (rDCF)", lambda r: pct((r["reverse_dcf"] or {}).get("implied_growth"), True) if r["reverse_dcf"] else "–"),
     ]
     for label, fn in rows:
         t.add_row(label, *[fn(r) for r in results])

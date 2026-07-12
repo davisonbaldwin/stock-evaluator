@@ -2,13 +2,13 @@
 
 Three independent lenses on the future:
 
-1. Scenario projections — five growth scenarios (bear → bull) blended from
+1. Scenario projections - five growth scenarios (bear → bull) blended from
    historical CAGR, CAPM-implied return, and analyst targets, projected over
    1/3/5/10-year horizons.
-2. Monte Carlo — joint bootstrap of historical (stock, index) daily-return pairs,
+2. Monte Carlo - joint bootstrap of historical (stock, index) daily-return pairs,
    preserving fat tails and their correlation, plus a GBM cross-check. Yields
    outcome percentiles, probability of loss, and probability of beating the index.
-3. Reverse DCF — the FCF growth rate the market is pricing in at today's value.
+3. Reverse DCF: the FCF growth rate the market is pricing in at today's value.
 """
 from __future__ import annotations
 
@@ -95,7 +95,7 @@ def monte_carlo(stock_close: pd.Series, index_close: pd.Series, drift: dict,
     21-day blocks preserve short-term autocorrelation and the stock/index
     correlation structure. Each path's empirical drift is re-centered to the
     blended expected return so the simulation isn't just an echo of a
-    historically hot (or cold) decade — history supplies the *shape* of risk
+    historically hot (or cold) decade - history supplies the *shape* of risk
     (vol, fat tails, correlation), the blend supplies the central tendency.
     """
     rng = np.random.default_rng(seed)
@@ -194,7 +194,7 @@ def reverse_dcf(market_cap: Optional[float], fcf: Optional[float],
 
     lo, hi = -0.50, 1.50
     if dcf_value(hi) < market_cap:
-        return {"implied_growth": None, "note": ">150%/yr — price not justifiable by FCF"}
+        return {"implied_growth": None, "note": ">150%/yr - price not justifiable by FCF"}
     if dcf_value(lo) > market_cap:
         return {"implied_growth": None, "note": "priced below run-off value"}
     for _ in range(100):
