@@ -61,7 +61,9 @@
     border: 0; background: var(--amber); color: var(--bg); cursor: pointer;
     font-weight: 700; }
   .searchbar button:hover { filter: brightness(1.1); }
-  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+  .chips-lbl { font-family: var(--mono); font-size: 11px; color: var(--muted);
+    letter-spacing: 0.04em; margin-right: 2px; }
   .chip-cmp { border-style: dashed; }
   .chip { font-family: var(--mono); font-size: 12px; padding: 5px 12px;
     background: transparent; border: 1px solid var(--line); cursor: pointer;
@@ -155,6 +157,25 @@
   .card h3::before { content: "$ "; color: var(--amber); }
   .card .note { font-size: 11.5px; color: var(--muted); margin-top: 10px;
     line-height: 1.5; }
+
+  /* plain-English explainers: every table of jargon can say what it means in
+     practice, folded away until asked for */
+  .explain { margin-top: 14px; }
+  .explain > summary { list-style: none; cursor: pointer; display: inline-block;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em;
+    color: var(--amber); user-select: none; border: 1px solid var(--amber);
+    border-radius: 3px; padding: 5px 10px; background: rgba(255, 180, 84, 0.07); }
+  .explain > summary::-webkit-details-marker { display: none; }
+  .explain > summary::before { content: "? "; font-weight: 700; }
+  .explain[open] > summary { background: var(--amber); color: var(--bg); }
+  .explain > summary:hover { background: var(--amber); color: var(--bg); }
+  .explain dl { margin: 8px 0 2px; font-size: 12px; line-height: 1.6; }
+  .explain dt { font-family: var(--mono); font-size: 11px; color: var(--amber);
+    margin-top: 9px; }
+  .explain dd { margin: 1px 0 0; color: var(--muted); }
+  .explain dd b { color: var(--ink); font-weight: 500; }
+  .explain > p { font-size: 12px; line-height: 1.6; color: var(--muted);
+    margin: 8px 0 2px; }
   .chartbox { position: relative; height: 270px; }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -197,9 +218,9 @@
   </header>
 
   <div class="ask">
-    <div class="prompt"><b>$</b> EVALUATE A TICKER, OR COMPARE UP TO 10, SEPARATED BY COMMAS</div>
+    <div class="prompt"><b>$</b> EVALUATE ANY US-LISTED STOCK, OR COMPARE UP TO 10, SEPARATED BY COMMAS</div>
     <div class="searchbar">
-      <input id="ticker" placeholder="NVDA (or NVDA, AMD)" autofocus aria-label="Ticker symbol, or several separated by commas"
+      <input id="ticker" placeholder="Any ticker on the US market, e.g. NVDA (or NVDA, AMD)" autofocus aria-label="Any ticker on the US market, or several separated by commas"
              onkeydown="if(event.key==='Enter')go()">
       <select id="benchmark" aria-label="Benchmark to compare against">
         <option value="VTI" selected>vs VTI (total US market)</option>
@@ -299,41 +320,239 @@
         <div class="top"><span id="v-verdict"></span><span><span class="big" id="v-score">&ndash;</span> / 100</span></div>
         <div class="meter"><div id="v-meter"></div></div>
         <div class="pillchips" id="v-pills"></div>
+        <details class="explain">
+          <summary>What this score and these six chips mean</summary>
+          <p>The number out of 100 is a weighted summary of everything in the dossier below, judged against fixed thresholds so every company is measured the same way. <b>Fifty is average, not a pass mark</b>, and the wording beside it changes at 75, 60, 45 and 30.</p>
+          <p>The six chips are the pillars it is made of. Each is scored 0&ndash;100 in its own right, so a strong overall number can still hide one weak pillar, which is what the line above points at.</p>
+          <dl>
+            <dt>Growth</dt><dd>How fast revenue, earnings and cash flow are growing.</dd>
+            <dt>Valuation</dt><dd>What you are being asked to pay for that, and how much future growth the price already assumes.</dd>
+            <dt>Quality</dt><dd>Margins, return on capital, and how much debt the business is carrying.</dd>
+            <dt>Momentum</dt><dd>Which way the share price has been moving over the last six to twelve months.</dd>
+            <dt>Risk</dt><dd>How violent the ride has been, and whether the returns justified it.</dd>
+            <dt>vs Index</dt><dd>How often this stock has beaten the index, across its history and in simulation.</dd>
+          </dl>
+          <p>The full weighting, and how much real data each pillar had to work with, is in the score breakdown at the bottom.</p>
+        </details>
       </div>
     </div>
 
     <div class="statgrid" id="statgrid"></div>
+    <details class="explain">
+      <summary>What these ten numbers mean</summary>
+      <dl>
+        <dt>5y / 10y return per year</dt>
+        <dd>The single yearly rate that would have produced the actual result, ups and downs smoothed away. <b>18%/yr over 10 years means the stock roughly multiplied five-fold</b>, not that it gained 18% each year. The line underneath is the same figure for the index, which is the number that matters.</dd>
+        <dt>$10k since &lt;year&gt;</dt>
+        <dd>What ten thousand dollars put in on that date is worth now, against the same ten thousand put into the index instead. The most concrete form of the whole question.</dd>
+        <dt>Volatility (1y)</dt>
+        <dd>How violently the price swings, stated as an annual figure. <b>Around 20% is calm for a single stock, 50% is a rough ride.</b> High volatility does not mean poor returns; it is the turbulence you sit through to collect them.</dd>
+        <dt>Sharpe (5y)</dt>
+        <dd>Return earned per unit of that turbulence. <b>Under 0.5 is poor, around 1.0 is solid, above 2.0 is rare.</b> It answers whether the return justified the risk, rather than just measuring the risk.</dd>
+        <dt>Worst crash</dt>
+        <dd>The deepest fall from a peak to the following low. It is the loss you would have had to hold through without selling, and the caption says whether it has recovered yet.</dd>
+        <dt>Off all-time high</dt>
+        <dd>How far below its record price it trades today. Near zero means you are buying at the top of its history, which is not automatically a problem, only a thing to notice.</dd>
+        <dt>Beta / Alpha</dt>
+        <dd><b>Beta</b> is how far it moves when the market moves one percent: 1.5 amplifies the market by half again, in both directions. <b>Alpha</b> is the yearly return left over after the market's movement explains what it can. Positive alpha is the part that was the company rather than the tide.</dd>
+        <dt>Forward P/E and PEG</dt>
+        <dd><b>Forward P/E</b> is the share price divided by next year's expected earnings per share, so 30 means you are paying thirty years of expected profit for one share. <b>PEG</b> divides that by the growth rate: below 1.0 has traditionally meant you are paying little for the growth you are getting, above 2.0 means the growth is already in the price.</dd>
+        <dt>Revenue growth</dt>
+        <dd>Sales this year against sales last year. Revenue is harder to massage than earnings, so it is the cleaner read on whether the business itself is getting bigger.</dd>
+      </dl>
+    </details>
 
     <div class="grid2">
-      <div class="card"><h3 id="t-growth10k"></h3><div class="chartbox"><canvas id="c-growth"></canvas></div></div>
-      <div class="card"><h3>Drawdowns from peak</h3><div class="chartbox"><canvas id="c-drawdown"></canvas></div></div>
-      <div class="card"><h3>Calendar-year returns</h3><div class="chartbox"><canvas id="c-calendar"></canvas></div></div>
+      <div class="card"><h3 id="t-growth10k"></h3><div class="chartbox"><canvas id="c-growth"></canvas></div>
+        <details class="explain">
+          <summary>How to read this chart</summary>
+          <p>Both lines start at the same ten thousand dollars on the same day, so the gap between them at the right edge is the entire argument for owning the stock instead of the index.</p>
+          <p>The vertical axis is <b>logarithmic</b>: equal distances are equal percentage moves rather than equal dollars. Without it, a decade of early growth would be squashed into an invisible line at the bottom. A straight rising line on this axis means a steady compounding rate.</p>
+        </details>
+      </div>
+      <div class="card"><h3>Drawdowns from peak</h3><div class="chartbox"><canvas id="c-drawdown"></canvas></div>
+        <details class="explain">
+          <summary>How to read this chart</summary>
+          <p>Every point shows how far below its own previous record the stock was on that day. Zero means it was setting a new high; &minus;40% means anyone holding it was down forty percent from the best it had ever been.</p>
+          <p><b>The width of each valley matters as much as its depth.</b> Depth is how much it hurt, width is how many months or years you had to keep believing before getting back to even.</p>
+        </details>
+      </div>
+      <div class="card"><h3>Calendar-year returns</h3><div class="chartbox"><canvas id="c-calendar"></canvas></div>
+        <details class="explain">
+          <summary>How to read this chart</summary>
+          <p>One bar per calendar year for the stock, next to the same year for the index. The question worth asking is whether the stock's advantage came from beating the index steadily, or from one or two spectacular years that are unlikely to repeat.</p>
+        </details>
+      </div>
       <div class="card"><h3>Forecast cone (10 years)</h3><div class="chartbox"><canvas id="c-cone"></canvas></div>
-        <div class="note" id="cone-note"></div></div>
+        <div class="note" id="cone-note"></div>
+        <details class="explain">
+          <summary>What every line and marker here means</summary>
+          <p>Two different things are drawn on one chart, and they answer different questions.</p>
+          <dl>
+            <dt>The five coloured lines</dt>
+            <dd>Simple compound growth. Each takes today's price and grows it at one fixed yearly rate for ten years, and that rate is printed in the legend. They are arithmetic, not forecasts: this is where the price lands <b>if</b> that rate holds.</dd>
+            <dt>bear</dt>
+            <dd>The pessimistic assumption set. A negative rate here means the line falls for ten straight years.</dd>
+            <dt>conservative</dt>
+            <dd>Roughly what the index itself tends to return. It is on the chart as the do-nothing alternative: if the stock cannot clear this line, an index fund was the better choice.</dd>
+            <dt>base</dt>
+            <dd>The default and the one to weigh most heavily. It caps the company's own historical growth at 25% a year, however fast it grew, then blends that half-and-half with the plain return its market risk implies. It is built to be hard to get excited about.</dd>
+            <dt>optimistic and bull</dt>
+            <dd>Progressively more generous assumptions. Treat them as what has to go right, not as targets.</dd>
+            <dt>The teal markers (MC p5, p50, p95)</dt>
+            <dd>These come from the ten thousand simulations, not from the lines, and they are plotted at years 1, 3, 5 and 10. <b>Triangles are p5</b>, the pessimistic end: 95% of simulations finished above them. <b>Circles are p50</b>, the median. <b>Squares are p95</b>: only 5% finished above them.</dd>
+          </dl>
+          <p>Where the markers sit relative to the lines is the useful comparison. If the simulated median is running below the base line, the tidy assumption behind that line is more optimistic than the stock's own history supports.</p>
+        </details>
+      </div>
     </div>
 
     <div class="grid2">
       <div class="card"><h3>Scenario price targets</h3>
-        <table id="tbl-scenarios"></table><div class="note" id="scenario-note"></div></div>
+        <table id="tbl-scenarios"></table><div class="note" id="scenario-note"></div>
+        <details class="explain">
+          <summary>What these numbers mean</summary>
+          <p>Three hand-built futures, with the assumption behind each one printed underneath rather than hidden. They are arithmetic, not forecasts: if growth runs at this rate and the market pays this multiple for it, the share price lands here.</p>
+          <dl>
+            <dt>Base</dt>
+            <dd>Deliberately unexciting. It caps the company's historical growth at 25% a year, however fast it grew, and blends that half-and-half with the plain return its market risk implies. Fast growers are throttled here on purpose.</dd>
+            <dt>Conservative</dt>
+            <dd>Roughly what the index itself tends to return. It is here as the do-nothing benchmark: <b>if the stock cannot clear this row, the index fund was the better choice.</b></dd>
+            <dt>Bear, Optimistic, Bull</dt>
+            <dd>The same arithmetic run with progressively more pessimistic or more generous assumptions, from a shrinking business up to everything going right. Read the assumption printed underneath first, decide whether you believe it, and only then look at the price it produces.</dd>
+            <dt>Analyst 1y range</dt>
+            <dd>What professional analysts covering the stock currently publish, shown for contrast. It is here because it is the number most other tools lead with, and the width of the range is the useful part of it.</dd>
+          </dl>
+        </details>
+      </div>
       <div class="card"><h3>Monte Carlo: 10,000 simulated futures</h3>
         <table id="tbl-mc"></table>
-        <div class="note">Joint bootstrap of historical stock+index daily returns; drift re-centered to the base scenario.</div></div>
+        <div class="note">Joint bootstrap of historical stock+index daily returns; drift re-centered to the base scenario.</div>
+        <details class="explain">
+          <summary>What the simulation is testing</summary>
+          <p><b>The question it answers:</b> given how this stock has really behaved, what range of outcomes is plausible over the next ten years, and in how many of them would you have been better off in the index?</p>
+          <p><b>How it works.</b> Rather than guess one future, the tool builds ten thousand of them. Each is stitched together out of <b>real chunks of this stock's own daily history</b>, sampled in blocks rather than one day at a time, so real crashes, rallies and dead years survive intact instead of being averaged into a smooth curve. The index is taken from <b>the same days</b>, so when the simulated stock is having a terrible month the simulated index is having whatever month it had. That keeps the comparison fair: both live in the same simulated world.</p>
+          <p>The overall growth rate is then re-centred on the conservative base scenario, so a stock coming off a spectacular run does not get to assume that run continues. Finally all ten thousand endings are sorted, and this table reports where they landed.</p>
+          <dl>
+            <dt>Horizon</dt>
+            <dd>How far ahead the simulation was run: one, three, five and ten years. The further out the row, the wider the spread between the bad and great columns, which is uncertainty compounding rather than the tool losing confidence.</dd>
+            <dt>Bad (p5)</dt>
+            <dd>The fifth percentile. <b>Ninety-five percent of the simulated futures ended better than this.</b> It is a realistic bad case, not the worst thing that could happen: five percent of them ended worse still.</dd>
+            <dt>Median</dt>
+            <dd>The middle. Half the simulations ended above this price, half below. If you take one number from this table, take this one, not the optimistic one.</dd>
+            <dt>Great (p95)</dt>
+            <dd>The ninety-fifth percentile. <b>Only five percent of the futures ended better.</b> Treat it as a ceiling, not a target.</dd>
+            <dt>P(loss)</dt>
+            <dd>The share of the ten thousand futures where you ended up with less money than you started with.</dd>
+            <dt>P(beat index)</dt>
+            <dd>The share where this stock finished ahead of the index in the very same simulated world. <b>It is the single number the tool is built to produce.</b> Below 50% means most simulated futures would have gone better for you in the index fund.</dd>
+            <dt>P(2x)</dt>
+            <dd>The share where the money at least doubled.</dd>
+          </dl>
+          <p>The honest limit: every one of these futures is assembled out of the past. If this company's next decade does not resemble its own history, the simulation has no way to know that.</p>
+        </details>
+      </div>
     </div>
 
     <div class="grid2">
-      <div class="card"><h3 id="t-vsindex"></h3><table id="tbl-vsindex"></table></div>
+      <div class="card"><h3 id="t-vsindex"></h3><table id="tbl-vsindex"></table>
+        <details class="explain">
+          <summary>What these numbers mean</summary>
+          <dl>
+            <dt>Beta</dt>
+            <dd>How far this stock moves when the market moves one percent. <b>1.0 moves with the market, 1.6 exaggerates it by 60% in both directions, 0.7 is steadier than the market.</b></dd>
+            <dt>Alpha (annualized)</dt>
+            <dd>The yearly return left over once its beta explains everything it can. Positive alpha is the part that was the company rather than the market it floats in.</dd>
+            <dt>3-factor alpha and factor betas</dt>
+            <dd>A stricter version of the same test. Plain alpha can look impressive when a stock is simply small, or cheap, since those traits have paid off historically on their own. This asks what is left after market direction, company size and cheapness have all been accounted for. Surviving this test is a stronger claim than surviving the first one.</dd>
+            <dt>R&sup2; to index</dt>
+            <dd>How much of its movement the index alone explains. <b>A high figure means you are largely buying the index with extra steps and extra risk</b>, worth checking before you pay a premium for something that mostly tracks the index.</dd>
+            <dt>Up / down capture</dt>
+            <dd>In months when the index rose, this stock captured that fraction of the rise; in months it fell, that fraction of the fall. <b>Above 1.0 up and below 1.0 down is the ideal and is rare.</b> Above 1.0 on both means you are simply holding a leveraged version of the market.</dd>
+            <dt>Active return and IR</dt>
+            <dd>How much it beat the index by each year, and the information ratio, which is that margin divided by how erratic the margin was. A high IR means the edge showed up consistently instead of arriving all at once. <b>An active return near zero means that over five years, all that extra risk bought you nothing the index would not have given you.</b></dd>
+            <dt>$10k since &lt;date&gt;</dt>
+            <dd>The plainest line in the table. The same ten thousand dollars, put into the stock and into the index on the same day, and what each is worth now, with the annual rates beside them. The date is simply as far back as both have data.</dd>
+          </dl>
+          <p>A note on reading these together: <b>a positive plain alpha with a negative three-factor alpha</b> (or the reverse) is common. It usually means the stock's apparent edge came from being a certain type of company, small or cheap, rather than from the company itself.</p>
+        </details>
+      </div>
       <div class="card"><h3>Rolling holding periods: every historical entry point</h3>
-        <table id="tbl-rolling"></table></div>
+        <table id="tbl-rolling"></table>
+        <details class="explain">
+          <summary>What these numbers mean</summary>
+          <p>A single backtest tells you almost nothing, because picking the start date decides the answer. So this walks <b>every possible day you could have bought</b> and holds for one, three and five years, then reports the whole distribution of what happened.</p>
+          <dl>
+            <dt>Worst / Median / Best</dt>
+            <dd>Across all those entry points, the unluckiest result, the middle one, and the luckiest. The gap between worst and best is how much of this stock's story was timing rather than the company.</dd>
+            <dt>% positive</dt>
+            <dd>The share of those holding periods that ended with more money than they started with.</dd>
+            <dt>% beat index</dt>
+            <dd><b>The plain historical base rate for this whole question.</b> If you had bought on a random day and held five years, this is how often you would have been better off than buying the index instead. Under 50% means the odds were against stock-picking here, whatever the recent price chart looks like.</dd>
+          </dl>
+        </details>
+      </div>
     </div>
 
     <div class="card"><h3>Fundamentals</h3>
       <div class="grid2 grid3">
         <table id="tbl-val"></table><table id="tbl-growthf"></table><table id="tbl-quality"></table>
       </div>
+      <details class="explain">
+        <summary>What these numbers mean</summary>
+        <dl>
+          <dt>P/E, trailing and forward</dt>
+          <dd>Share price divided by earnings per share, using the last twelve months or next year's estimate. <b>Roughly, how many years of profit you are paying for one share.</b> Forward is the more useful of the two and the more easily flattered, since the estimate is a guess.</dd>
+          <dt>PEG</dt>
+          <dd>The forward P/E divided by the growth rate, which is a rough way of asking whether the price is justified by how fast the company is growing. <b>Below 1.0 has traditionally meant you are paying little for that growth; above 2.0 means the growth is already in the price.</b> It is a blunt instrument, since it treats all growth as equally durable, but it is a fast sanity check on an expensive-looking P/E.</dd>
+          <dt>P/S</dt>
+          <dd>Price against sales rather than profit. It is what you fall back on for companies that do not earn a profit yet, where a P/E would be meaningless.</dd>
+          <dt>EV/EBITDA</dt>
+          <dd>Enterprise value (the whole company including its debt, minus its cash) against its earnings before interest, tax and accounting write-downs. <b>It lets you compare two companies fairly when one is loaded with debt and the other is not</b>, which a plain P/E cannot do.</dd>
+          <dt>FCF yield</dt>
+          <dd>The actual cash the business generated, after everything it had to spend to keep running, as a percentage of its price. Think of it as the interest rate the business pays you for owning it. Cash is much harder to manipulate than reported earnings.</dd>
+          <dt>Dividend yield</dt>
+          <dd>The cash paid out to shareholders each year as a percentage of the share price. A dash means the company pays nothing and is reinvesting everything instead, which is normal for a growth business and not a fault.</dd>
+          <dt>Revenue YoY and Earnings YoY</dt>
+          <dd>This year against last year. <b>Earnings swing far harder than revenue</b>, in both directions, because costs are subtracted first. A vast earnings jump often says more about how bad last year was than how good this year is.</dd>
+          <dt>CAGR (revenue, net income, FCF)</dt>
+          <dd>The compound annual growth rate: the single yearly rate that would have produced the multi-year result. <b>These matter more than the year-over-year figures</b> because they cannot be flattered by one soft comparison. A dash means the filings on hand did not go back far enough to compute it honestly.</dd>
+          <dt>Gross, operating and net margin</dt>
+          <dd>What survives of each sales dollar at three stages: after the direct cost of delivering the product, after the cost of running the company, and after everything including tax and interest. <b>Rising margins usually mean pricing power; falling margins usually mean competition arrived.</b></dd>
+          <dt>ROE</dt>
+          <dd>Profit as a percentage of shareholders' money in the business. High is good, but heavy borrowing inflates it, so read it beside debt to equity.</dd>
+          <dt>Rule of 40</dt>
+          <dd>Growth rate plus profit margin. <b>The software industry's rough test that the sum should clear 40</b>: grow fast, or be profitable, and ideally trade one off against the other deliberately rather than failing at both.</dd>
+          <dt>Debt to equity</dt>
+          <dd>Borrowings against shareholders' capital. Debt magnifies good years and can be fatal in bad ones, which is why it sits in the quality pillar rather than the growth one.</dd>
+        </dl>
+      </details>
     </div>
 
     <div class="card"><h3>Score breakdown</h3><table id="tbl-score"></table>
-      <div class="note" id="rdcf-note"></div></div>
+      <div class="note" id="rdcf-note"></div>
+      <details class="explain">
+        <summary>What each pillar measures, and how the score is built</summary>
+        <p>Every raw number in this dossier is mapped onto a 0&ndash;100 scale using thresholds fixed in advance, so the same yardstick is applied to every company. Those scores are grouped into six pillars and weighted into one composite. <b>Fifty is deliberately average, not a pass mark.</b></p>
+        <dl>
+          <dt>Growth &middot; 20%</dt>
+          <dd>Revenue and earnings growth over the last year, plus multi-year revenue and free-cash-flow growth rates. <b>Is the business getting bigger, and does that growth reach the cash line and not just the sales line?</b></dd>
+          <dt>Valuation &middot; 20%</dt>
+          <dd>Forward P/E, PEG, free-cash-flow yield, EV/EBITDA, and the growth rate the reverse DCF says is already priced in. This pillar is about <b>what you are being asked to pay</b>. An excellent company scores badly here when its price already assumes everything goes right.</dd>
+          <dt>Quality &middot; 20%</dt>
+          <dd>Gross and operating margin, return on equity, the Rule of 40, and debt to equity. <b>Is the business durable?</b> Does it keep a healthy share of every sale, earn a good return on the money invested in it, and avoid the kind of debt that turns a bad year into a fatal one.</dd>
+          <dt>Momentum &middot; 10%</dt>
+          <dd>Twelve-month and six-month price performance and how far it sits below its own 52-week high. <b>Weighted last on purpose.</b> Recent price movement is the number most easily mistaken for a signal, and a tool that leans on it just tells you what already happened.</dd>
+          <dt>Risk &middot; 15%</dt>
+          <dd>Volatility, the five-year Sharpe ratio, the worst peak-to-trough fall, and beta. Not "is this risky" but <b>"did the return justify the risk you carried"</b>, which is a different and more useful question.</dd>
+          <dt>vs Index &middot; 15%</dt>
+          <dd>The direct measurement of this tool's whole premise: how often the stock beat the index across every three- and five-year holding period in its history, its alpha, and how often it beats the index in the ten thousand simulations. <b>A low score here is the tool saying the index has usually been the better bet</b>, whatever the other five pillars say.</dd>
+          <dt>Data coverage</dt>
+          <dd>The fraction of that pillar's metrics that had data to work with. <b>When a figure is missing it scores a neutral 50 rather than a zero</b>, because a company should not be marked down for a gap in someone else's data. But neutral values quietly drag a score toward the middle, so coverage is printed alongside: <b>a 62 built on complete data and a 62 built on half of it are different claims.</b></dd>
+          <dt>Reverse DCF</dt>
+          <dd>Run backwards from today's share price to ask what growth rate the market must already be assuming to justify it. <b>The more growth is already priced in, the less room is left for you to profit from it</b>, and the more has to go right just to break even. It is why a strong company can still be a weak investment at the wrong price.</dd>
+        </dl>
+      </details></div>
 
     <div class="footer">Data: Yahoo Finance (cached 12h). Educational analysis only, not investment advice.
       Forecasts are model outputs, not predictions.<br>
@@ -344,6 +563,10 @@
 <script>
 const $ = id => document.getElementById(id);
 const QUICK = ["AAPL","MSFT","NVDA","GOOGL","AMZN","META","TSLA","AMD","CRM","NFLX"];
+// the chips are just a running start; any US-listed ticker works
+const lbl = document.createElement("span");
+lbl.className = "chips-lbl"; lbl.textContent = "or start with:";
+$("chips").appendChild(lbl);
 QUICK.forEach(t => {
   const c = document.createElement("span");
   c.className = "chip"; c.textContent = t;
@@ -571,9 +794,20 @@ function render(d){
   }
 
   { // honest caveat, named from the real weakest pillar
+    // this line names a pillar before the reader has met the score breakdown
+    // at the foot of the page, so it says in passing what the pillar measures
+    const GLOSS = {
+      growth: "how fast revenue, earnings and cash flow are growing",
+      valuation: "what you are paying relative to what the business earns",
+      quality: "margins, return on capital and how much debt it carries",
+      momentum: "which way the share price has moved over the last six to twelve months",
+      risk: "how violent the ride has been, and whether the returns justified it",
+      "vs index": "how often it has beaten the index, across its history and in simulation",
+    };
     const pl = Object.entries(sc.pillars);
     const worst = pl.reduce((a, x) => (x[1][0] < a[1][0] ? x : a));
     const worstName = worst[0].toLowerCase(), worstScore = Math.round(worst[1][0]);
+    const worstGloss = GLOSS[worstName] || "";
     const val = f.valuation || {}, fpe = val.forward_pe, peg = val.peg;
     let cHead, cTxt;
     if (/valuation/i.test(worst[0]) && worstScore < 55) {
@@ -581,10 +815,13 @@ function render(d){
       cTxt = `It's expensive today: valuation scores <b>${worstScore}/100</b>`
         + (fpe != null ? `, a forward P/E of <b>${num(fpe, 1)}</b>` : "")
         + (peg != null ? ` and a PEG of <b>${num(peg)}</b>` : "")
+        + (fpe != null ? `, meaning you are paying about ${num(fpe, 0)} years of expected profit for one share` : "")
         + `. Whether it keeps beating the index is the open question.`;
     } else {
       cHead = "Watch the weak spot.";
-      cTxt = `Its weakest pillar is <b>${worstName} ${worstScore}/100</b>. The full dossier below shows why.`;
+      cTxt = `Its weakest pillar is <b>${worstName} ${worstScore}/100</b>`
+        + (worstGloss ? `, which measures ${worstGloss}` : "")
+        + `. The full dossier below shows why.`;
     }
     $("v-cav-head").textContent = cHead;
     $("v-cav-txt").innerHTML = cTxt;
@@ -738,14 +975,18 @@ function render(d){
     ["Debt/equity", num(q.debt_to_equity,0)], ["Rule of 40", num(q.rule_of_40,0)]]);
 
   // score
-  rows = `<tr><th>Pillar</th><th>Score</th><th></th><th>Weight</th></tr>`;
+  // coverage rides beside the weight: a score built on half the data is a
+  // weaker claim than the same score built on all of it, and saying so is
+  // the point (the terminal dossier has always printed this)
+  const covCell = (c) => `<td style="color:${c < 0.6 ? "var(--amber)" : "var(--muted)"}">${Math.round(c*100)}%</td>`;
+  rows = `<tr><th>Pillar</th><th>Score</th><th></th><th>Weight</th><th>Data</th></tr>`;
   for (const [name, [s, cov, w]] of Object.entries(sc.pillars)) {
     rows += `<tr><td>${name}</td><td style="color:${scoreColor(s)};font-weight:700">${Math.round(s)}</td>
       <td><span class="pillbar"><div style="width:${s}%;background:${scoreColor(s)}"></div></span></td>
-      <td>${Math.round(w*100)}%</td></tr>`;
+      <td>${Math.round(w*100)}%</td>${covCell(cov)}</tr>`;
   }
   rows += `<tr><td><b>Composite</b></td><td style="color:${scoreColor(sc.total)};font-weight:800">${Math.round(sc.total)}</td>
-    <td><span class="pillbar"><div style="width:${sc.total}%;background:${scoreColor(sc.total)}"></div></span></td><td>100%</td></tr>`;
+    <td><span class="pillbar"><div style="width:${sc.total}%;background:${scoreColor(sc.total)}"></div></span></td><td>100%</td>${covCell(sc.coverage)}</tr>`;
   $("tbl-score").innerHTML = rows;
   const rd = d.reverse_dcf;
   $("rdcf-note").textContent = rd && rd.implied_growth != null

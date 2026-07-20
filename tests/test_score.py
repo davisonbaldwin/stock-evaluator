@@ -1,5 +1,23 @@
 """Scoring: band interpolation, missing-data neutrality, verdict thresholds."""
-from evaluator.score import _avg, _band, compute
+from evaluator.score import _avg, _band, _ratio, compute
+
+
+def test_negative_lower_is_better_ratios_are_not_perfect_scores():
+    # regression: a loss-making company has a negative forward P/E, and these
+    # bands run from their best anchor downward, so an unguarded negative fell
+    # through _band as a flawless 100. It reads as missing instead, which also
+    # drops the pillar's data coverage.
+    pe_bands = [(12, 100), (20, 75), (30, 50), (45, 25), (70, 0)]
+    assert _band(-8.0, pe_bands, higher_is_better=False) == 100   # the trap itself
+    assert _ratio(-8.0) is None                                   # so it never reaches it
+    assert _ratio(0.0) is None                                    # a zero P/E is not cheap
+    assert _ratio(18.4) == 18.4                                   # ordinary values pass
+
+
+def test_zero_debt_survives_the_ratio_guard():
+    # no borrowings is a real, excellent state; only negative equity is nonsense
+    assert _ratio(0.0, allow_zero=True) == 0.0
+    assert _ratio(-50.0, allow_zero=True) is None
 
 
 def test_band_endpoints_and_interpolation():

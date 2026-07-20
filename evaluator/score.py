@@ -35,6 +35,24 @@ def _band(value: Optional[float], bands: List[Tuple[float, float]],
     return score
 
 
+def _ratio(value: Optional[float], allow_zero: bool = False) -> Optional[float]:
+    """Drop a lower-is-better ratio whose sign makes it meaningless.
+
+    A loss-making company has a negative forward P/E; negative shareholders'
+    equity produces a negative debt-to-equity. Neither says "cheap" or
+    "unleveraged", but these bands are authored from their best anchor
+    downward, so `_band` scores anything under the first threshold a perfect
+    100. Treating the value as missing is both truthful and consistent with
+    the rest of the model: the metric goes neutral and the pillar's data
+    coverage falls to admit it could not be judged.
+    """
+    if value is None:
+        return None
+    if value < 0 or (value == 0 and not allow_zero):
+        return None
+    return value
+
+
 def _avg(scores: List[Optional[float]]) -> Tuple[float, float]:
     """(average of available scores defaulting to 50, coverage fraction)."""
     present = [s for s in scores if s is not None]
@@ -54,10 +72,10 @@ def compute(hist: dict, fund: dict, bench: dict, mc: dict, rdcf: Optional[dict])
     ])
 
     value_score, value_cov = _avg([
-        _band(v["forward_pe"], [(12, 100), (20, 75), (30, 50), (45, 25), (70, 0)], higher_is_better=False),
-        _band(v["peg"], [(0.8, 100), (1.5, 70), (2.5, 40), (4.0, 10)], higher_is_better=False),
+        _band(_ratio(v["forward_pe"]), [(12, 100), (20, 75), (30, 50), (45, 25), (70, 0)], higher_is_better=False),
+        _band(_ratio(v["peg"]), [(0.8, 100), (1.5, 70), (2.5, 40), (4.0, 10)], higher_is_better=False),
         _band(v["fcf_yield"], [(0.0, 10), (0.02, 40), (0.04, 70), (0.06, 100)]),
-        _band(v["ev_to_ebitda"], [(10, 100), (18, 70), (28, 40), (45, 10)], higher_is_better=False),
+        _band(_ratio(v["ev_to_ebitda"]), [(10, 100), (18, 70), (28, 40), (45, 10)], higher_is_better=False),
         # Reverse-DCF implied growth: the more growth already priced in, the worse
         _band(rdcf["implied_growth"], [(0.05, 100), (0.12, 70), (0.20, 40), (0.30, 10)],
               higher_is_better=False) if rdcf and rdcf.get("implied_growth") is not None else None,
@@ -68,7 +86,9 @@ def compute(hist: dict, fund: dict, bench: dict, mc: dict, rdcf: Optional[dict])
         _band(q["operating_margin"], [(0.05, 20), (0.15, 50), (0.25, 75), (0.35, 100)]),
         _band(q["roe"], [(0.05, 20), (0.15, 50), (0.25, 75), (0.40, 100)]),
         _band(q["rule_of_40"], [(10, 25), (30, 50), (40, 70), (60, 100)]),
-        _band(q["debt_to_equity"], [(30, 100), (80, 70), (150, 40), (300, 10)], higher_is_better=False),
+        # zero debt is real and excellent; negative equity is not "no leverage"
+        _band(_ratio(q["debt_to_equity"], allow_zero=True),
+              [(30, 100), (80, 70), (150, 40), (300, 10)], higher_is_better=False),
     ])
 
     mom = hist["momentum"]
